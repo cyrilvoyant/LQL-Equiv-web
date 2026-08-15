@@ -15,6 +15,7 @@ web/index.html
 web/robots.txt
 web/sitemap.xml
 paper/figures/*.pdf
+!paper/figures/fig4_interface.png
 paper/*.aux
 paper/*.bbl
 paper/*.blg

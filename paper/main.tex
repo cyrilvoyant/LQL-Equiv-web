@@ -172,9 +172,9 @@ loads stlite \cite{stlite}, which runs Streamlit on Pyodide \cite{pyodide}.
 GitHub Actions rebuilds and publishes that page on every push; the whole cycle
 takes about 25\,s.
 
-The consequence is architectural rather than cosmetic. No computation happens
-on a server: each visitor's browser downloads static files and executes the
-model locally. Nothing entered into the application is transmitted anywhere,
+The consequence is architectural rather than cosmetic (Fig.~\ref{fig:interface}).
+No computation happens on a server: each visitor's browser downloads static
+files and executes the model locally. Nothing entered into the application is transmitted anywhere,
 which matters when a physicist types a real patient schedule, and concurrent use
 is limited only by the number of visitors' own machines.
 
@@ -578,17 +578,16 @@ transition dose $d_t = 2\,\alpha/\beta$.}
 \label{fig:lql}
 \end{figure}
 
-% Save a screenshot of https://cyrilvoyant.github.io/LQL-Equiv-web/ as
-% figures/fig4_interface.png, then uncomment this block.
-%\begin{figure}[t]
-%\centering
-%\includegraphics[width=0.9\textwidth]{figures/fig4_interface.png}
-%\caption{The application running in a browser. Left, tissue selection and model
-%options; centre, the courses and the computed equivalent doses, complication and
-%control probabilities; below, the isoeffect curves with the $\alpha/\beta$
-%uncertainty band.}
-%\label{fig:interface}
-%\end{figure}
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.92\textwidth]{figures/fig4_interface.png}
+\caption{The application running in a browser, with nothing installed. Left, the
+tissue library and the choice of sigmoid; centre, the courses and the resulting
+equivalent doses, complication and control probabilities, with the
+$\alpha/\beta$ interval reported beneath them. Every value shown is computed on
+the reader's own machine.}
+\label{fig:interface}
+\end{figure}
 
 %% ---------------------------------------------------------------------------
 \section{Impact}
