@@ -36,20 +36,26 @@ CONTRIBUTORS = ["Cyril Voyant", "Daniel Julian"]
 
 REPOSITORY_URL = "https://github.com/cyrilvoyant/LQL-Equiv-web"
 
+ZENODO_DOI = "10.5281/zenodo.16739883"
+#: Zenodo's concept DOI always resolves to the most recent version.
+ZENODO_CONCEPT_DOI = "10.5281/zenodo.16739882"
+
 SOFTWARE_CITATION = (
-    "Voyant C, Julian D. LQL-Equiv: biologically equivalent doses in radiotherapy "
-    "under the linear-quadratic-linear model. Version 3.0.0, 2026.\n"
-    f"{REPOSITORY_URL}"
+    "Voyant, C., & Julian, D. (2025). LQL-Equiv: Open-Source Software for "
+    "Biologically Equivalent Dose Calculation in Radiotherapy (Version 1.2) "
+    f"[Computer software]. Zenodo. https://doi.org/{ZENODO_DOI}"
 )
 
-SOFTWARE_BIBTEX = """@software{voyant_lqlequiv_2026,
-  author  = {Voyant, Cyril and Julian, Daniel},
-  title   = {{LQL-Equiv}: biologically equivalent doses in radiotherapy
-             under the linear-quadratic-linear model},
-  version = {3.0.0},
-  year    = {2026},
-  url     = {https://github.com/cyrilvoyant/LQL-Equiv-web}
-}"""
+SOFTWARE_BIBTEX = f"""@software{{voyant_lqlequiv,
+  author    = {{Voyant, Cyril and Julian, Daniel}},
+  title     = {{{{LQL-Equiv}}: Open-Source Software for Biologically Equivalent
+               Dose Calculation in Radiotherapy}},
+  year      = {{2025}},
+  publisher = {{Zenodo}},
+  version   = {{1.2}},
+  doi       = {{{ZENODO_DOI}}},
+  url       = {{https://doi.org/{ZENODO_DOI}}}
+}}"""
 
 REFERENCES = [
     ("Voyant C, Julian D, Roustit R, Biffi K, Lantieri C. "
@@ -64,9 +70,25 @@ REFERENCES = [
      "linear-quadratic (LQ) and linear-quadratic-linear (LQL) dose models. "
      "*Clinical Oncology* 2025;45.",
      "https://doi.org/10.1016/j.clon.2025.103893"),
-    ("LQ-Equiv, the original MATLAB application (2014). Software, archived on Zenodo.",
+    ("Voyant C, Julian D. LQL-Equiv: open-source software for biologically equivalent "
+     "dose calculation in radiotherapy (Version 1.2) [Computer software]. Zenodo, 2025.",
      "https://doi.org/10.5281/zenodo.16739883"),
 ]
+
+#: Which published model each tabulated parameter belongs to.
+PARAMETER_MODELS = {
+    "α/β (Gy)": "Linear-quadratic",
+    "α (Gy⁻¹)": "Linear-quadratic",
+    "Transition dose (Gy)": "Linear-quadratic-linear (Astrahan)",
+    "T½ (h)": "Incomplete repair (Thames)",
+    "Tk (d)": "Proliferation (Dale)",
+    "Tp (d)": "Proliferation (Dale)",
+    "Dprol (Gy/d)": "Proliferation (Dale)",
+    "m": "NTCP probit (Lyman)",
+    "D50 (Gy)": "NTCP probit (Lyman)",
+    "γ50": "TCP sigmoid",
+    "TCD50 (Gy)": "TCP sigmoid",
+}
 
 # A DNA double helix struck by an ionising track: what the model is ultimately
 # about. Icon only -- the wordmark and the tagline are HTML, so that they wrap
@@ -165,15 +187,27 @@ def _with_alpha_beta(tissue, value: float):
     return replace(tissue, alpha_beta=value, dt=2.0 * value)
 
 
+#: Points sampled across the alpha/beta range when drawing the uncertainty band.
+#: The two endpoints are not enough: the transition dose to the linear tail is
+#: twice alpha/beta, so varying it moves a fraction size across that threshold
+#: and the equivalent dose is not monotonic in alpha/beta. Sampling only the
+#: extremes then reports a band narrower than the true range.
+_BAND_SAMPLES = 9
+
+
 def _alpha_beta_band(oar, tum, prescription, options, library, spread: float):
     """Equivalent dose range obtained by varying both alpha/beta ratios.
 
     van Leeuwen et al. found the published alpha/beta of a given tumour site to
     vary widely with histology, stage, model form and endpoint, and recommend
     exploring a range rather than trusting a point value.
+
+    Each tissue's equivalent dose depends only on its own alpha/beta, so both
+    ratios are moved together and each curve's own extremes are read off.
     """
     oar_doses, tumour_doses = [], []
-    for factor in (1 - spread, 1 + spread):
+    for step in range(_BAND_SAMPLES):
+        factor = 1 - spread + 2 * spread * step / (_BAND_SAMPLES - 1)
         probe = compute(
             _with_alpha_beta(oar, oar.alpha_beta * factor),
             _with_alpha_beta(tum, tum.alpha_beta * factor),
@@ -280,8 +314,10 @@ def main() -> None:
                  "The conventional choice of 2 Gy gives EQD2.",
         )
         bifractionated = st.toggle(
-            "Two fractions a day", value=False,
-            help="Applies Thames' incomplete-repair correction, with a six-hour interval.",
+            "Two fractions a day — Thames incomplete repair", value=False,
+            help="Incomplete repair of sublethal damage between two fractions "
+                 "given six hours apart (Thames), governed by the repair "
+                 "half-time T½.",
         )
 
         st.subheader("Input style")
@@ -304,8 +340,11 @@ def main() -> None:
                      "86 fractions. This replaces its fallback by the closed form "
                      "of the staircase. No effect below 86 fractions.",
             )
-            tcp_choice = st.selectbox("Tumour control probability model",
-                                      ["Logistic", "Poisson"])
+            tcp_choice = st.selectbox(
+                "Tumour control probability sigmoid", ["Logistic", "Poisson"],
+                help="The 2014 library tabulates γ50 and TCD50 but records no "
+                     "choice of sigmoid, so both standard forms are offered.",
+            )
 
         with st.expander("α/β sensitivity"):
             st.caption(
@@ -324,20 +363,40 @@ def main() -> None:
             tcp_model=TCPModel.LOGISTIC if tcp_choice == "Logistic" else TCPModel.POISSON,
         )
 
-        with st.expander("Selected radiobiological parameters"):
+        with st.expander("Radiobiological parameters and their models"):
             st.caption(f"**{oar.name}** — endpoint: {oar.endpoint or 'not applicable'}")
+            names = ["α/β (Gy)", "α (Gy⁻¹)", "Transition dose (Gy)", "T½ (h)",
+                     "Tk (d)", "Tp (d)", "Dprol (Gy/d)", "m", "D50 (Gy)"]
             st.dataframe(pd.DataFrame({
-                "Parameter": ["α/β (Gy)", "α (Gy⁻¹)", "Tk (d)", "Tp (d)",
-                              "Transition dose (Gy)", "T½ (h)", "Dprol (Gy/d)"],
-                "Value": [oar.alpha_beta, oar.alpha, oar.Tk, oar.Tp,
-                          oar.dt, oar.T_half, oar.dprol],
+                "Parameter": names,
+                "Value": [oar.alpha_beta, oar.alpha, oar.dt, oar.T_half,
+                          oar.Tk, oar.Tp, oar.dprol, oar.m, oar.d50],
+                "Model": [PARAMETER_MODELS[n] for n in names],
             }), hide_index=True, width="stretch")
+
             st.caption(f"**{tum.name}** — endpoint: {tum.endpoint or 'not applicable'}")
+            names = ["α/β (Gy)", "α (Gy⁻¹)", "Transition dose (Gy)", "T½ (h)",
+                     "Tk (d)", "Tp (d)", "γ50", "TCD50 (Gy)"]
             st.dataframe(pd.DataFrame({
-                "Parameter": ["α/β (Gy)", "α (Gy⁻¹)", "Tk (d)", "Tp (d)",
-                              "Transition dose (Gy)", "T½ (h)"],
-                "Value": [tum.alpha_beta, tum.alpha, tum.Tk, tum.Tp, tum.dt, tum.T_half],
+                "Parameter": names,
+                "Value": [tum.alpha_beta, tum.alpha, tum.dt, tum.T_half,
+                          tum.Tk, tum.Tp, tum.gamma50, tum.tcd50],
+                "Model": [PARAMETER_MODELS[n] for n in names],
             }), hide_index=True, width="stretch")
+
+            source = (tum.source or oar.source) if not (
+                oar.is_from_2014_release and tum.is_from_2014_release) else ""
+            st.caption(
+                "**Source.** Values transcribed from the 2014 MATLAB release "
+                f"([Zenodo {ZENODO_DOI}](https://doi.org/{ZENODO_DOI})), described in "
+                "Voyant et al., *Rep Pract Oncol Radiother* 2014;19(1):47–55. The "
+                "Lyman parameters fall in the range of the Emami/Burman fits, which "
+                "is their probable but unverified origin. Full provenance, and the "
+                "nine values the 2014 interface displayed differently from those it "
+                "computed with, are recorded in `docs/PARAMETERS.md`."
+                + (f"\n\n**This entry is not from the 2014 release.** {source}"
+                   if source else "")
+            )
 
     # ----------------------------------------------------------------- inputs
     header, counter = st.columns([3, 1])
@@ -386,15 +445,19 @@ def main() -> None:
         help=f"Cumulative equivalent dose to the target volume, in {unit}.",
     )
     columns[2].metric(
-        "Complication probability",
+        "NTCP — Lyman probit",
         _format(result.ntcp_percent, " %"),
-        help=f"Lyman probit NTCP for the endpoint: {oar.endpoint or 'none tabulated'}.",
+        help="Normal tissue complication probability: the chance of the tabulated "
+             "complication at this equivalent dose, from the Lyman probit through "
+             f"D50 with slope m. Endpoint: {oar.endpoint or 'none tabulated'}.",
     )
     columns[3].metric(
-        "Tumour control probability",
+        "TCP — logistic in γ50",
         _format(result.tcp_percent, " %"),
-        help="New in 3.0: computed from the tumour dose-response parameters that "
-             "the 2014 application loaded but never used.",
+        help="Tumour control probability: the chance that no clonogenic cell "
+             "survives, so that the tumour is sterilised, at this equivalent dose. "
+             "Read off a sigmoid passing through TCD50, the dose controlling half "
+             "of tumours, with normalised slope γ50.",
     )
 
     if show_band and spread > 0:
@@ -483,39 +546,59 @@ def main() -> None:
 
         first_saturated = None
         for value in values:
-            probe = compute(oar, tum, Prescription(
+            plan = Prescription(
                 courses=(_course(value), course2, course3),
                 reference_dose=reference_dose, bifractionated=bifractionated,
-            ), options, library)
+            )
+            probe = compute(oar, tum, plan, options, library)
             if probe.saturated:
                 # Past this point the curve is the search bound, not the model.
                 if first_saturated is None:
                     first_saturated = value
                 continue
-            rows.append({x_title: value, "Tissue": f"{oar.name} (OAR)",
-                         dose_axis: probe.eqd_oar_total})
-            rows.append({x_title: value, "Tissue": f"{tum.name} (target)",
-                         dose_axis: probe.eqd_tumour_total})
+
+            # Each tissue's equivalent dose depends only on its own alpha/beta,
+            # so varying both at once gives both bands in two extra solves.
+            oar_range = tumour_range = None
+            if show_band and spread > 0:
+                oar_range, tumour_range = _alpha_beta_band(
+                    oar, tum, plan, options, library, spread
+                )
+            for name, dose, band in (
+                (f"{oar.name} (OAR)", probe.eqd_oar_total, oar_range),
+                (f"{tum.name} (target)", probe.eqd_tumour_total, tumour_range),
+            ):
+                row = {x_title: value, "Tissue": name, dose_axis: dose}
+                row["Lower"] = band[0] if band else dose
+                row["Upper"] = band[1] if band else dose
+                rows.append(row)
 
         if first_saturated is not None:
-            st.warning(
-                f"The curve stops at {first_saturated:g}: beyond that the equivalent "
-                f"exceeds 100 reference fractions, where the 2014 search interval ends, "
-                f"and the value flattens onto that bound instead of continuing. Turn "
-                f"off *Reproduce the 2014 results exactly* to plot the whole range."
+            st.caption(
+                f"Curve stops at {first_saturated:g} — past the 2014 search range. "
+                f"Turn off *Reproduce the 2014 results exactly* to continue it."
             )
         if not rows:
             st.info("Every point in this range is outside the 2014 search interval.")
             st.stop()
 
         frame = pd.DataFrame(rows)
+        colour = alt.Color("Tissue:N", title=None, legend=alt.Legend(orient="top"))
         curve = alt.Chart(frame).mark_line(strokeWidth=2).encode(
             x=alt.X(f"{x_title}:Q", title=x_title),
             y=alt.Y(f"{dose_axis}:Q", title=dose_axis),
-            color=alt.Color("Tissue:N", title=None,
-                            legend=alt.Legend(orient="top")),
-            tooltip=[x_title, "Tissue", alt.Tooltip(f"{dose_axis}:Q", format=".2f")],
+            color=colour,
+            tooltip=[x_title, "Tissue", alt.Tooltip(f"{dose_axis}:Q", format=".2f"),
+                     alt.Tooltip("Lower:Q", format=".2f"),
+                     alt.Tooltip("Upper:Q", format=".2f")],
         )
+        if show_band and spread > 0:
+            curve = alt.Chart(frame).mark_area(opacity=0.18).encode(
+                x=alt.X(f"{x_title}:Q", title=x_title),
+                y=alt.Y("Lower:Q", title=dose_axis),
+                y2=alt.Y2("Upper:Q"),
+                color=colour,
+            ) + curve
         # Mark the schedule entered on the curve itself. A bare rule layer would
         # carry no y value, leaving Vega to resolve the shared y scale from an
         # empty extent and emit an infinite domain.
@@ -527,7 +610,16 @@ def main() -> None:
             tooltip=[x_title, "Tissue", alt.Tooltip(f"{dose_axis}:Q", format=".2f")],
         )
         st.altair_chart((curve + marker).properties(height=340), use_container_width=True)
-        st.caption(f"The filled points mark the schedule entered ({x_current:g}).")
+        note = f"The filled points mark the schedule entered ({x_current:g})."
+        if show_band and spread > 0:
+            note += (f" The shaded bands span α/β varied by ±{spread * 100:.0f} %: "
+                     f"{oar.alpha_beta * (1 - spread):.2g}–{oar.alpha_beta * (1 + spread):.2g} Gy "
+                     f"for the {oar.name.lower()}, "
+                     f"{tum.alpha_beta * (1 - spread):.2g}–{tum.alpha_beta * (1 + spread):.2g} Gy "
+                     f"for the target.")
+        else:
+            note += " Enable α/β sensitivity in the sidebar to see the uncertainty band."
+        st.caption(note)
 
     with window_tab:
         st.markdown(
@@ -554,13 +646,28 @@ def main() -> None:
                     courses=(Course(dose, count, course1.gap_days),),
                     reference_dose=reference_dose, bifractionated=bifractionated,
                 ), options, library)
-                rows.append({
+                row = {
                     f"Dose per fraction ({unit_gy})": dose,
                     "Fractions": count,
                     f"Dose to the organ at risk ({unit})": probe.eqd_oar_total,
                     "Schedule": f"{count:.1f} × {dose:g} Gy",
                     "NTCP (%)": probe.ntcp_percent,
-                })
+                }
+                if show_band and spread > 0:
+                    # The fraction count is held at its central solution here, so
+                    # this is the spread on the organ dose for a fixed schedule,
+                    # not a re-matched one.
+                    band, _ = _alpha_beta_band(
+                        oar, tum,
+                        Prescription(courses=(Course(dose, count, course1.gap_days),),
+                                     reference_dose=reference_dose,
+                                     bifractionated=bifractionated),
+                        options, library, spread,
+                    )
+                    row["Lower"], row["Upper"] = band
+                else:
+                    row["Lower"] = row["Upper"] = probe.eqd_oar_total
+                rows.append(row)
             if not rows:
                 st.info("No fractionation reproduces this tumour effect in the range "
                         "scanned. Try a different schedule.")
@@ -576,6 +683,12 @@ def main() -> None:
                     tooltip=["Schedule", alt.Tooltip(f"{y_name}:Q", format=".2f"),
                              alt.Tooltip("NTCP (%):Q", format=".2f")],
                 )
+                if show_band and spread > 0:
+                    chart = alt.Chart(frame).mark_area(opacity=0.18).encode(
+                        x=alt.X(f"{x_name}:Q", title=x_name),
+                        y=alt.Y("Lower:Q", title=y_name, scale=alt.Scale(zero=False)),
+                        y2=alt.Y2("Upper:Q"),
+                    ) + chart
                 highlight = alt.Chart(pd.DataFrame([best])).mark_point(
                     size=180, color="crimson", filled=True
                 ).encode(x=f"{x_name}:Q", y=f"{y_name}:Q")
@@ -693,12 +806,17 @@ def main() -> None:
 
         st.markdown("#### Citing this software")
         st.markdown(
-            "If you use LQL-Equiv in academic work, please cite both the software "
-            "and the methodology paper."
+            "If you use LQL-Equiv in academic work, please cite the archived "
+            "software record and the methodology paper below."
         )
         st.code(SOFTWARE_CITATION, language=None)
         st.caption("BibTeX")
         st.code(SOFTWARE_BIBTEX, language="bibtex")
+        st.caption(
+            f"To cite all versions rather than this one, use the concept DOI "
+            f"[{ZENODO_CONCEPT_DOI}](https://doi.org/{ZENODO_CONCEPT_DOI}), which "
+            f"always resolves to the most recent release."
+        )
 
         st.markdown("#### References")
         for text, url in REFERENCES:
