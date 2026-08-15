@@ -264,15 +264,15 @@ def _swap_last_course(courses, dose: float, count: float):
     return tuple(varied)
 
 
-def _fractions_matching_tumour_dose(
-    target: float, dose: float, oar, tum, prescription, options, library,
-    tolerance: float = 0.05,
+def _fractions_matching(
+    held: float, dose: float, oar, tum, prescription, options, library,
+    on_target: bool = True, tolerance: float = 0.05,
 ) -> float | None:
-    """Fractions of ``dose`` in the last course reaching a total tumour dose of ``target``.
+    """Fractions of ``dose`` in the last course that reproduce a cumulative dose.
 
-    Only the last course is rewritten; the earlier ones stand as entered, being
-    already delivered. The target is the cumulative dose over the whole
-    prescription, which is the quantity worth holding constant.
+    ``on_target`` selects which tissue is held: the target volume, or the organ
+    at risk. Only the last course is rewritten; the earlier ones stand as
+    entered, being already delivered.
 
     Bisected on the fraction count, which the tumour equivalent dose increases
     with. A coarse scan is not good enough here: stepping the fraction count by
@@ -281,26 +281,27 @@ def _fractions_matching_tumour_dose(
 
     Returns ``None`` when no fraction count in range reaches the target.
     """
-    def tumour_dose(count: float) -> float:
-        return compute(oar, tum, Prescription(
+    def delivered(count: float) -> float:
+        result = compute(oar, tum, Prescription(
             courses=_swap_last_course(prescription.courses, dose, count),
             reference_dose=prescription.reference_dose,
             bifractionated=prescription.bifractionated,
-        ), options, library).eqd_tumour_total
+        ), options, library)
+        return result.eqd_tumour_total if on_target else result.eqd_oar_total
 
     low, high = 0.1, 100.0
-    if tumour_dose(low) > target or tumour_dose(high) < target:
+    if delivered(low) > held or delivered(high) < held:
         return None
     for _ in range(60):
         middle = (low + high) / 2
-        if tumour_dose(middle) < target:
+        if delivered(middle) < held:
             low = middle
         else:
             high = middle
         if high - low < 1e-4:
             break
     count = (low + high) / 2
-    return count if abs(tumour_dose(count) - target) <= tolerance else None
+    return count if abs(delivered(count) - held) <= tolerance else None
 
 
 def main() -> None:
@@ -657,76 +658,70 @@ def main() -> None:
         st.caption(note)
 
     with window_tab:
-        st.markdown(
-            f"**Which fraction size reaches the same tumour effect at the lowest cost "
-            f"to the {oar.name.lower()}?** The **last course** is rewritten at each "
-            f"fraction size, its whole number of fractions chosen to hold the "
-            f"cumulative target dose near {result.eqd_tumour_total:.2f} {unit_gy}"
-            + (f"; courses 1 to {len(courses) - 1} stand as entered."
-               if len(courses) > 1 else ".")
-        )
-        # A late-responding organ at risk is conventionally modelled without
-        # proliferation. Leaving the tabulated dprol in would let a protracted
-        # schedule appear to spare it, which drives the minimum onto the smallest
-        # fraction size and hides the fractionation trade-off this plot is for.
+        hold_target = st.radio(
+            "Hold constant",
+            [f"Target effect — spare the {oar.name.lower()}",
+             f"{oar.name} effect — push the target"],
+            horizontal=True, key="window_mode",
+        ).startswith("Target")
+
+        # Late-responding tissue: no proliferation, or a protracted schedule would
+        # appear to spare the organ and swamp the fractionation trade-off.
         oar_window = replace(oar, dprol=0.0) if oar.dprol else oar
-        target = result.eqd_tumour_total
-        if target <= 0 or not result.tumour_total_valid:
-            st.info("Enter a first course to draw the therapeutic window.")
+        anchor = compute(oar_window, tum, prescription, options, library)
+        held = anchor.eqd_tumour_total if hold_target else anchor.eqd_oar_total
+        held_name = tum.name if hold_target else oar.name
+        y_name = (f"Dose to the organ at risk ({unit})" if hold_target
+                  else f"Dose to the target ({unit})")
+        x_name = f"Dose per fraction ({unit_gy})"
+
+        st.markdown(
+            f"Last course rewritten at each fraction size, its whole number of "
+            f"fractions chosen to hold **{held_name}** at {held:.2f} {unit_gy}."
+        )
+
+        if held <= 0 or not result.tumour_total_valid:
+            st.info("Enter a course to draw the therapeutic window.")
         else:
             rows, unreachable = [], 0
             for step in range(2, 21):
                 dose = step / 2.0
-                count = _fractions_matching_tumour_dose(
-                    target, dose, oar_window, tum, prescription, options, library
-                )
+                count = _fractions_matching(held, dose, oar_window, tum,
+                                            prescription, options, library,
+                                            on_target=hold_target)
                 if count is None:
                     continue
-                # Fractions are delivered whole. Rounding to the nearest one means
-                # the target can no longer be held exactly, so what each schedule
-                # actually reaches is carried alongside and reported.
                 count = max(1, round(count))
                 schedule = Prescription(
                     courses=_swap_last_course(courses, dose, count),
                     reference_dose=reference_dose, bifractionated=bifractionated,
                 )
                 probe = compute(oar_window, tum, schedule, options, library)
-                # With whole fractions a large fraction size cannot land on an
-                # arbitrary target: two fractions of 9.5 Gy overshoot or undershoot
-                # by several gray. Comparing the cost of schedules that reach
-                # different tumour doses is meaningless, so those are dropped
-                # rather than allowed to win by under-dosing.
-                if abs(probe.eqd_tumour_total - target) > max(0.5, 0.02 * target):
+                reached = (probe.eqd_tumour_total if hold_target
+                           else probe.eqd_oar_total)
+                # Whole fractions cannot land on an arbitrary dose; schedules that
+                # miss must not win by delivering something else.
+                if abs(reached - held) > max(0.5, 0.02 * held):
                     unreachable += 1
                     continue
-                # How far the organ dose of *this* schedule moves when alpha/beta
-                # is varied. On a fixed schedule this is a well-defined error bar,
-                # unlike a band drawn along the curve, and it is what tells the
-                # reader whether the spread between fraction sizes means anything.
-                band, _ = _alpha_beta_band(
+                shown = (probe.eqd_oar_total if hold_target
+                         else probe.eqd_tumour_total)
+                oar_band, tum_band = _alpha_beta_band(
                     oar_window, tum, schedule, options, library, spread or 0.3
                 )
+                band = oar_band if hold_target else tum_band
                 rows.append({
-                    f"Dose per fraction ({unit_gy})": dose,
-                    "Fractions": count,
-                    f"Dose to the organ at risk ({unit})": probe.eqd_oar_total,
-                    f"Target reached ({unit})": probe.eqd_tumour_total,
-                    "Schedule": f"{count:d} × {dose:g} Gy",
-                    "NTCP (%)": probe.ntcp_percent,
-                    "Lower": band[0],
-                    "Upper": band[1],
+                    x_name: dose, "Schedule": f"{count:d} × {dose:g} Gy",
+                    y_name: shown, f"{held_name} reached ({unit})": reached,
+                    "Lower": band[0], "Upper": band[1],
                 })
+
             if not rows:
-                st.info("No fractionation reproduces this tumour effect in the range "
-                        "scanned. Try a different schedule.")
+                st.info("No whole-fraction schedule in range reproduces this effect.")
             else:
                 frame = pd.DataFrame(rows)
-                x_name = f"Dose per fraction ({unit_gy})"
-                y_name = f"Dose to the organ at risk ({unit})"
-                best = frame.loc[frame[y_name].idxmin()]
-                # Points, not a line: whole-fraction rounding leaves gaps in the
-                # scan, and a line would draw a trend through fraction sizes that
-                # cannot reach this target at all.
+                best = (frame.loc[frame[y_name].idxmin()] if hold_target
+                        else frame.loc[frame[y_name].idxmax()])
                 points = alt.Chart(frame).mark_point(
                     size=70, filled=True, opacity=0.95
                 ).encode(
@@ -734,29 +729,22 @@ def main() -> None:
                     y=alt.Y(f"{y_name}:Q", axis=_vertical_axis(y_name),
                             scale=alt.Scale(zero=False)),
                     tooltip=["Schedule", alt.Tooltip(f"{y_name}:Q", format=".2f"),
-                             alt.Tooltip(f"Target reached ({unit}):Q", format=".2f"),
-                             alt.Tooltip("NTCP (%):Q", format=".2f"),
+                             alt.Tooltip(f"{held_name} reached ({unit}):Q", format=".2f"),
                              alt.Tooltip("Lower:Q", format=".2f"),
                              alt.Tooltip("Upper:Q", format=".2f")],
                 )
                 bars = alt.Chart(frame).mark_rule(strokeWidth=2, opacity=0.35).encode(
                     x=f"{x_name}:Q", y="Lower:Q", y2="Upper:Q",
                 )
-                # Past the target's transition dose the tumour is on its linear
-                # tail: enlarging fractions stops buying differential advantage
-                # while the organ at risk keeps paying. That is where an apparent
-                # optimum should be read with most suspicion.
                 marks = pd.DataFrame([
-                    {x_name: tum.dt, "Tissue": f"{tum.name} transition dose"},
-                    {x_name: oar.dt, "Tissue": f"{oar.name} transition dose"},
+                    {x_name: tum.dt, "Tissue": f"{tum.name} transition"},
+                    {x_name: oar.dt, "Tissue": f"{oar.name} transition"},
                 ])
                 thresholds = alt.Chart(marks).mark_rule(
                     strokeDash=[5, 4], opacity=0.55
-                ).encode(
-                    x=f"{x_name}:Q",
-                    color=alt.Color("Tissue:N", title=None,
-                                    legend=alt.Legend(orient="bottom")),
-                )
+                ).encode(x=f"{x_name}:Q",
+                         color=alt.Color("Tissue:N", title=None,
+                                         legend=alt.Legend(orient="bottom")))
                 highlight = alt.Chart(pd.DataFrame([best])).mark_point(
                     size=190, color="crimson", filled=True
                 ).encode(x=f"{x_name}:Q", y=f"{y_name}:Q")
@@ -764,46 +752,29 @@ def main() -> None:
                     (points + bars + thresholds + highlight).properties(height=340),
                     use_container_width=True,
                 )
-                # Only call a schedule best if its uncertainty bar clears every
-                # other one. Otherwise the ranking is an artefact of parameters
-                # nobody knows to that precision, and saying so is the honest
-                # output.
+
+                # Only claim a winner when its uncertainty bar clears the others.
                 others = frame.drop(best.name)
-                resolved = not others.empty and best["Upper"] < others["Lower"].min()
-                lowest, highest = frame["Lower"].min(), frame["Upper"].max()
+                resolved = not others.empty and (
+                    best["Upper"] < others["Lower"].min() if hold_target
+                    else best["Lower"] > others["Upper"].max()
+                )
+                verb = "spares the organ most" if hold_target else "delivers most to the target"
                 if resolved:
-                    st.success(
-                        f"**{best['Schedule']}** costs the {oar.name.lower()} least, "
-                        f"{best[y_name]:.2f} {unit}, and the α/β uncertainty does not "
-                        f"overlap any other schedule scanned."
-                    )
+                    st.success(f"**{best['Schedule']}** {verb}: {best[y_name]:.2f} {unit}. "
+                               f"Its α/β uncertainty clears every other schedule.")
                 else:
                     st.warning(
-                        f"**The scan does not resolve a best schedule.** Organ doses "
-                        f"span {frame[y_name].min():.2f}–{frame[y_name].max():.2f} "
-                        f"{unit_gy} across fraction sizes, while the α/β uncertainty "
-                        f"on a single schedule already spans {lowest:.2f}–{highest:.2f} "
-                        f"{unit_gy}. The lowest point, {best['Schedule']}, is marked, "
-                        f"but the difference between schedules is smaller than what "
-                        f"the parameters support.",
-                        icon="⚠",
-                    )
-                if unreachable:
-                    st.caption(
-                        f"{unreachable} of the 19 fraction sizes scanned are not shown: "
-                        f"no whole number of fractions at that size lands within 2 % of "
-                        f"the target, which is a real constraint of large fractions "
-                        f"rather than a gap in the scan."
+                        f"**No schedule is resolved as best.** Across fraction sizes the "
+                        f"spread is {frame[y_name].max() - frame[y_name].min():.2f} {unit_gy}; "
+                        f"α/β uncertainty on one schedule already spans "
+                        f"{frame['Upper'].max() - frame['Lower'].min():.2f} {unit_gy}. "
+                        f"Lowest/highest point marked, not recommended.", icon="⚠",
                     )
                 st.caption(
-                    f"Bars are the organ dose under α/β varied by ±{(spread or 0.3) * 100:.0f} % "
-                    f"on that same schedule. Dashed lines mark the transition doses to the "
-                    f"linear tail: past {tum.dt:g} Gy the target is on its tail, so larger "
-                    f"fractions stop buying differential advantage while the "
-                    f"{oar.name.lower()} keeps paying. Points, not a curve — whole-fraction "
-                    f"rounding leaves real gaps. Organ at risk modelled without "
-                    f"proliferation, as a late-responding tissue. A model comparison, not "
-                    f"a clinical recommendation."
+                    f"Whole fractions{f'; {unreachable} sizes cannot reach the held dose' if unreachable else ''}. "
+                    f"Bars: α/β ±{(spread or 0.3) * 100:.0f} %. Dashed: transition doses — past "
+                    f"{tum.dt:g} Gy the target is on its linear tail. Not a clinical recommendation."
                 )
 
     with scenario_tab:
