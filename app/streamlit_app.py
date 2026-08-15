@@ -529,11 +529,8 @@ def main() -> None:
     dose_axis = f"Equivalent dose ({unit})"
 
     with isoeffect_tab:
-        st.markdown(
-            "How the equivalent dose of the **first course** grows as it is "
-            "lengthened, everything else held as entered. The vertical line marks "
-            "the schedule currently entered."
-        )
+        st.markdown("Equivalent dose of the **first course**, everything else held "
+                    "as entered.")
         sweep = st.radio(
             "Vary", ["Number of fractions", "Dose per fraction"],
             horizontal=True, key="isoeffect_axis",
@@ -596,9 +593,12 @@ def main() -> None:
                      alt.Tooltip("Upper:Q", format=".2f")],
         )
         if show_band and spread > 0:
+            # The band layer encodes a different field from the line, so it must
+            # not draw its own axis: two layers claiming the same axis with
+            # different field names leaves the title blank.
             curve = alt.Chart(frame).mark_area(opacity=0.18).encode(
                 x=alt.X(f"{x_title}:Q", title=x_title),
-                y=alt.Y("Lower:Q", title=dose_axis),
+                y=alt.Y("Lower:Q", axis=None),
                 y2=alt.Y2("Upper:Q"),
                 color=colour,
             ) + curve
@@ -627,12 +627,14 @@ def main() -> None:
     with window_tab:
         st.markdown(
             f"**Which fraction size reaches the same tumour effect at the lowest cost "
-            f"to the {oar.name.lower()}?** The tumour equivalent dose is held at the "
-            f"value of the schedule entered; for every fraction size the number of "
-            f"fractions is adjusted to keep it there, and the resulting dose to the "
-            f"organ at risk is plotted. The lowest point is the best fractionation "
-            f"for that tumour effect."
+            f"to the {oar.name.lower()}?** For every fraction size the number of "
+            f"fractions is adjusted to hold the target dose at the value entered."
         )
+        # A late-responding organ at risk is conventionally modelled without
+        # proliferation. Leaving the tabulated dprol in would let a protracted
+        # schedule appear to spare it, which drives the minimum onto the smallest
+        # fraction size and hides the fractionation trade-off this plot is for.
+        oar_window = replace(oar, dprol=0.0) if oar.dprol else oar
         target = result.eqd_tumour_total
         if target <= 0 or not result.tumour_total_valid:
             st.info("Enter a first course to draw the therapeutic window.")
@@ -641,11 +643,11 @@ def main() -> None:
             for step in range(2, 21):
                 dose = step / 2.0
                 count = _fractions_matching_tumour_dose(
-                    target, dose, oar, tum, prescription, options, library
+                    target, dose, oar_window, tum, prescription, options, library
                 )
                 if count is None:
                     continue
-                probe = compute(oar, tum, Prescription(
+                probe = compute(oar_window, tum, Prescription(
                     courses=(Course(dose, count, course1.gap_days),),
                     reference_dose=reference_dose, bifractionated=bifractionated,
                 ), options, library)
@@ -661,7 +663,7 @@ def main() -> None:
                     # this is the spread on the organ dose for a fixed schedule,
                     # not a re-matched one.
                     band, _ = _alpha_beta_band(
-                        oar, tum,
+                        oar_window, tum,
                         Prescription(courses=(Course(dose, count, course1.gap_days),),
                                      reference_dose=reference_dose,
                                      bifractionated=bifractionated),
@@ -689,7 +691,7 @@ def main() -> None:
                 if show_band and spread > 0:
                     chart = alt.Chart(frame).mark_area(opacity=0.18).encode(
                         x=alt.X(f"{x_name}:Q", title=x_name),
-                        y=alt.Y("Lower:Q", title=y_name, scale=alt.Scale(zero=False)),
+                        y=alt.Y("Lower:Q", axis=None, scale=alt.Scale(zero=False)),
                         y2=alt.Y2("Upper:Q"),
                     ) + chart
                 highlight = alt.Chart(pd.DataFrame([best])).mark_point(
@@ -705,23 +707,11 @@ def main() -> None:
                     + (f", for a {complication:.1f} % complication probability."
                        if complication is not None and pd.notna(complication) else ".")
                 )
-                at_edge = best[x_name] in (frame[x_name].min(), frame[x_name].max())
-                if oar.dprol > 0 and at_edge:
-                    st.warning(
-                        f"The optimum sits at the edge of the range scanned, and "
-                        f"{oar.name.lower()} carries a proliferation dose of "
-                        f"{oar.dprol:g} Gy/day. Protracting treatment then *appears* to "
-                        f"spare the organ at risk, because the model lets it proliferate "
-                        f"too. That is a property of the model, not of late-responding "
-                        f"normal tissue, and this optimum should not be read as a "
-                        f"recommendation. Compare fraction sizes within a clinically "
-                        f"plausible range instead."
-                    )
                 st.caption(
-                    "Single course only, and a model comparison rather than a clinical "
-                    "recommendation: it accounts for fraction size and overall time, "
-                    "not for dose distribution, volume effects or the constraints of "
-                    "any real plan."
+                    "Single course, organ at risk modelled without proliferation as a "
+                    "late-responding tissue. A model comparison, not a clinical "
+                    "recommendation: it knows nothing of dose distribution, volume "
+                    "effects or plan constraints."
                 )
 
     with scenario_tab:
