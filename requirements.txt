@@ -1,0 +1,4 @@
+# Runtime requirements for the hosted Streamlit application.
+# The lqlequiv package itself depends only on the Python standard library.
+streamlit>=1.50
+pandas>=2.0

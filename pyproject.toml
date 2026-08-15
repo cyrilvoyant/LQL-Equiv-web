@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lqlequiv"
+version = "3.0.0"
+description = "Biologically equivalent doses in radiotherapy under the linear-quadratic-linear model"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+keywords = [
+    "radiotherapy", "biologically effective dose", "BED", "EQD2",
+    "linear-quadratic-linear model", "NTCP", "TCP", "medical physics",
+]
+authors = [
+    {name = "Cyril Voyant", email = "cyrilvoyant@gmail.com"},
+    {name = "Daniel Julian"},
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+dependencies = []
+
+[project.optional-dependencies]
+app = ["streamlit>=1.50", "pandas>=2.0"]
+dev = ["pytest>=8", "numpy>=1.26", "ruff>=0.6"]
+
+[project.urls]
+Homepage = "https://www.cyrilvoyant.com"
+Repository = "https://github.com/cyrilvoyant/LQL-Equiv-web"
+"Original MATLAB release" = "https://github.com/cyrilvoyant/LQ-Equiv"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+lqlequiv = ["data/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+markers = [
+    "slow: replays the full 2014 search grid; needs numpy",
+]
+
+[tool.ruff]
+line-length = 95
+src = ["src", "app", "tools"]

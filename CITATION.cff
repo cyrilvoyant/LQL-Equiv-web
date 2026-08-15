@@ -1,0 +1,88 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below. If you use it in academic work, please also cite the associated methodology paper (see preferred-citation)."
+title: "LQL-Equiv-web: a validated Python and web implementation of biologically equivalent dose calculation in radiotherapy"
+type: software
+
+authors:
+  - given-names: "Cyril"
+    family-names: "Voyant"
+    affiliation: "Universite Nice Sophia Antipolis, France"
+    website: "https://person.cyrilvoyant.com"
+    orcid: "https://orcid.org/0000-0003-0242-7377"
+
+  - given-names: "Daniel"
+    family-names: "Julian"
+    affiliation: "Centre de Cancerologie du Grand Montpellier, France"
+
+repository-code: "https://github.com/cyrilvoyant/LQL-Equiv-web"
+url: "https://github.com/cyrilvoyant/LQL-Equiv-web"
+license: "MIT"
+version: "3.0.0"
+date-released: "2026-08-15"
+
+abstract: >
+  LQL-Equiv-web computes biologically equivalent doses in external-beam
+  radiotherapy under the linear-quadratic-linear model: biologically effective
+  dose, equivalent dose in a reference fractionation, normal-tissue
+  complication probability, tumour control probability and radiation-induced
+  cancer risk, with corrections for incomplete inter-fraction repair,
+  repopulation and treatment protraction. It is a Python and browser-based
+  successor to the 2014 MATLAB application, validated case by case against it.
+  For research and education only; not a medical device.
+
+keywords:
+  - radiotherapy
+  - biologically effective dose
+  - linear-quadratic-linear model
+  - equivalent dose
+  - NTCP
+  - TCP
+  - medical physics
+  - Python
+  - Streamlit
+
+references:
+  - type: software
+    title: "LQ-Equiv: the original MATLAB application"
+    authors:
+      - given-names: "Cyril"
+        family-names: "Voyant"
+      - given-names: "Daniel"
+        family-names: "Julian"
+    doi: "10.5281/zenodo.16739883"
+    repository-code: "https://github.com/cyrilvoyant/LQ-Equiv"
+  - type: article
+    title: "A short synthesis concerning biological effects and equivalent doses in radiotherapy"
+    authors:
+      - given-names: "Cyril"
+        family-names: "Voyant"
+      - given-names: "Daniel"
+        family-names: "Julian"
+    journal: "Journal of Radiology and Oncology"
+    year: 2017
+    volume: 1
+    start: 39
+    end: 45
+    doi: "10.29328/journal.jro.1001005"
+
+preferred-citation:
+  type: article
+  title: "Biological effects and equivalent doses in radiotherapy: A software solution"
+  authors:
+    - given-names: "Cyril"
+      family-names: "Voyant"
+    - given-names: "Daniel"
+      family-names: "Julian"
+    - given-names: "Rudy"
+      family-names: "Roustit"
+    - given-names: "Katia"
+      family-names: "Biffi"
+    - given-names: "Celine"
+      family-names: "Lantieri"
+  journal: "Reports of Practical Oncology and Radiotherapy"
+  year: 2014
+  volume: 19
+  issue: 1
+  start: 47
+  end: 55
+  doi: "10.1016/j.rpor.2013.08.004"
