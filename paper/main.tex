@@ -129,6 +129,15 @@ radiobiological dose scaling introduces clinically relevant differences in
 cumulative dose \cite{wahlstedt2026,hardcastle2024,stroom2025}. Where the
 spinal cord is involved, that variation is not academic.
 
+Part of that dispersion is not disagreement about radiobiology but about
+vocabulary. Identical parameters yield substantially different reported EQD2
+values depending on whether proliferation is applied to the evaluated schedule
+only or symmetrically to the evaluated and the reference schedule. For one
+head-and-neck course the two conventions differ by 15\,Gy
+(Section~\ref{sec:examples}); both are defensible, and a value reported without
+its convention cannot be reconciled with another. This software therefore states
+its own convention as an equation rather than in prose.
+
 Three modelling elements are needed and are routinely omitted. First, the
 linear-quadratic model overestimates cell kill at the fraction sizes used in
 stereotactic treatments; the linear-quadratic-linear (LQL) form of Astrahan
@@ -315,19 +324,18 @@ typed entry, an isoeffect sweep over fraction number or fraction size, a
 therapeutic window in both directions, scenario comparison with CSV and JSON
 export, and an $\alpha/\beta$ sensitivity band.
 
-That last feature deserves a note. Published $\alpha/\beta$ values for a given
-tumour site vary widely with histology, stage, model form and endpoint, and the
-systematic review that collects them explicitly recommends exploring a range
-rather than trusting a point value \cite{vanleeuwen2018}. The software therefore
-reports equivalent dose across a user-chosen spread of $\alpha/\beta$ rather
-than at a single tabulated value. Because $\alpha/\beta$ also sets the
-transition dose, the response is not monotonic in it and the envelope is sampled
-at nine points rather than at its two ends.
+That last feature follows the systematic review of published $\alpha/\beta$
+values, which recommends exploring a range rather than trusting a point estimate
+\cite{vanleeuwen2018}. Because $\alpha/\beta$ also sets the transition dose
+$d_t$, the response is not monotonic in it, so the envelope is sampled at nine
+points rather than at its two ends.
 
-\subsection{Clinical validation of the underlying calculation}
+\subsection{Historical multicentre evaluation}
 
-The calculation itself was validated clinically when it was first published
-\cite{voyant2014}. A questionnaire was sent to medical physicists in seven
+The model was evaluated across centres when it was first published
+\cite{voyant2014}. That evaluation bears on the approach and on the 2014
+application, not on version 3.0, and is reported here as context rather than as
+evidence for the present release. A questionnaire was sent to medical physicists in seven
 French radiotherapy centres, covering eight clinical calculators in routine use:
 CHD Castelluccio (Ajaccio, two calculators), Centre de Canc\'erologie du Grand
 Montpellier, CRLCC Paul Lamarque (Montpellier), Clinique Saint-Pierre
@@ -346,12 +354,13 @@ schedule.
 That survey is twelve years old and its finding has not aged: the workshop
 described above measured 25.8\,\% agreement on the same class of question
 \cite{voyant2026standard}, and multi-centre reirradiation studies report the
-same dispersion in cumulative dose \cite{wahlstedt2026,hardcastle2024}. The
-present work does not revisit that clinical validation; it preserves it, by
-guaranteeing that version~3.0 computes what the validated implementation
-computed.
+same dispersion \cite{wahlstedt2026,hardcastle2024}. The present work does not
+repeat it. What follows verifies that version~3.0 computes what the evaluated
+implementation computed, which is a claim about fidelity, and then checks the
+equations against closed forms, which is a claim about correctness. Neither is a
+clinical validation of the new release.
 
-\subsection{Numerical validation of the reimplementation}
+\subsection{Numerical verification of version 3.0}
 
 The 2014 application still runs under MATLAB R2025b and can be driven without a
 display. \texttt{tools/matlab/sweep.m} opens the figure invisibly, sets the
@@ -468,6 +477,7 @@ modify the treatment of a patient.
 
 %% ---------------------------------------------------------------------------
 \section{Illustrative examples}
+\label{sec:examples}
 
 The library is used in a few lines. The example below reproduces a prostate
 schedule of 39~$\times$~2\,Gy with the rectum as organ at risk:
@@ -496,22 +506,17 @@ This is the quantity that compensation guidance asks a department to estimate
 \cite{rcr2019,jones2020,dale2024}, and the one the workshop found practitioners
 estimating inconsistently \cite{voyant2026standard}.
 
-\paragraph{Two definitions of the same word.} The companion standardisation
-study reports, for 35~$\times$~2\,Gy in a head-and-neck target
-($\alpha/\beta = 10$\,Gy, $\alpha = 0.3$\,Gy$^{-1}$, $T_k = 21$\,d,
-$T_p = 4$\,d), a time-corrected EQD2 of 57.97\,Gy without interruption and
-54.60\,Gy with one \cite{voyant2026standard}. Given the same parameters this
-software returns $D_\mathrm{prol} = 0.5775$\,Gy\,d$^{-1}$ by
-equation~\eqref{eq:dprol}, identical to theirs, yet 70.00\,Gy without
-interruption. Neither is wrong: the study divides the schedule's own BED by
-$1+d_r/(\alpha/\beta)$, whereas equation~\eqref{eq:core} matches it against a
-reference schedule that is itself protracted and therefore loses the same dose
-to proliferation, so at $d = d_r$ the two losses cancel and the equivalent dose
-returns the physical dose. The first quantity measures effect delivered, the
-second measures schedule equivalence. Reporting either without saying which is
-exactly how a 25.8\,\% agreement rate arises, and is the reason this
-implementation states its definition in equation~\eqref{eq:core} rather than in
-prose.
+\paragraph{Two definitions of the same word.} For 35~$\times$~2\,Gy in a
+head-and-neck target ($\alpha/\beta = 10$\,Gy, $\alpha = 0.3$\,Gy$^{-1}$,
+$T_k = 21$\,d, $T_p = 4$\,d) the companion standardisation study reports a
+time-corrected EQD2 of 54.60\,Gy \cite{voyant2026standard}; this software
+returns 70.00\,Gy from the same $D_\mathrm{prol} = 0.5775$\,Gy\,d$^{-1}$ given by
+equation~\eqref{eq:dprol}. The study divides the schedule's own BED by
+$1+d_r/(\alpha/\beta)$; equation~\eqref{eq:core} matches it against a reference
+schedule that is itself protracted, so at $d = d_r$ the two proliferation losses
+cancel and the equivalent dose returns the physical dose. The first measures
+effect delivered, the second schedule equivalence. Neither is wrong, and the
+interface names which one it reports.
 
 \paragraph{Direction of the time effect.} Proliferation penalises both sides of
 an equivalence, and the longer side loses more, so its effect changes sign with
