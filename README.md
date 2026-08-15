@@ -90,6 +90,14 @@ halfway between two points of the 2014 search grid and the original result is
 settled by floating-point noise at the fifteenth decimal. The full analysis is
 in [`docs/COMPARISON-2014.md`](docs/COMPARISON-2014.md).
 
+**Which mode the application runs in.** The web interface solves the equivalent
+fraction count exactly and uses the closed form of the calendar staircase. The
+2014 behaviour — a search grid of hundredths of a fraction that stopped at 100,
+and a calendar model that contradicted itself past 86 fractions — is a
+validation concern, not a setting: it is reachable through `Options` in the
+library and is what the golden suite pins. Below 100 equivalent fractions the
+two differ by at most 0.005 reference fractions, or about 0.01 Gy at 2 Gy.
+
 Separately, the closed-form search that replaces the original exhaustive scan is
 proved equivalent to it: [`tools/verify_grid_equivalence.py`](tools/verify_grid_equivalence.py)
 replays all 20 001 grid points for every case and reports **0 disagreements**

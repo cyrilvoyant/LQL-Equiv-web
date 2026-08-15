@@ -326,25 +326,14 @@ def main() -> None:
             label_visibility="collapsed",
         ) == "Sliders"
 
-        with st.expander("Model options"):
-            legacy = st.toggle(
-                "Reproduce the 2014 results exactly", value=True,
-                help="Snaps the equivalent fraction count to the grid of one "
-                     "hundredth of a fraction used by the 2014 application. "
-                     "Turning this off returns the exact root instead, which "
-                     "differs by at most 0.005 reference fractions.",
-            )
-            extend = st.toggle(
-                "Extend the calendar staircase past 86 fractions", value=False,
-                help="The 2014 calendar model is inconsistent with itself beyond "
-                     "86 fractions. This replaces its fallback by the closed form "
-                     "of the staircase. No effect below 86 fractions.",
-            )
-            tcp_choice = st.selectbox(
-                "Tumour control probability sigmoid", ["Logistic", "Poisson"],
-                help="The 2014 library tabulates γ50 and TCD50 but records no "
-                     "choice of sigmoid, so both standard forms are offered.",
-            )
+        st.subheader("Models")
+        tcp_choice = st.selectbox(
+            "Tumour control probability sigmoid", ["Logistic", "Poisson"],
+            help="The library tabulates γ50 and TCD50 but records no choice of "
+                 "sigmoid, so both standard forms are offered. "
+                 "Logistic: 1/(1+(TCD50/D)^4γ50). "
+                 "Poisson: 2^(−exp(e·γ50(1−D/TCD50))).",
+        )
 
         with st.expander("α/β sensitivity"):
             st.caption(
@@ -357,9 +346,15 @@ def main() -> None:
             spread = st.slider("Vary α/β by ± %", 0, 60, 30, 5,
                                disabled=not show_band) / 100.0
 
+        # Equivalent fraction counts are solved exactly and overall time follows
+        # the closed form of the weekend staircase. The 2014 application instead
+        # scanned a grid of hundredths of a fraction that stopped at 100, and its
+        # calendar model contradicted itself past 86 fractions. Reproducing that
+        # is a validation concern, exercised by the golden test-suite rather than
+        # offered here as a setting.
         options = Options(
-            legacy_quantisation=legacy,
-            time_model=TimeModel.STAIRCASE if extend else TimeModel.LEGACY,
+            legacy_quantisation=False,
+            time_model=TimeModel.STAIRCASE,
             tcp_model=TCPModel.LOGISTIC if tcp_choice == "Logistic" else TCPModel.POISSON,
         )
 
@@ -475,12 +470,9 @@ def main() -> None:
 
     if result.saturated:
         st.error(
-            "**This schedule exceeds the range the 2014 search could represent.** "
-            "Its equivalent is more than 100 reference fractions, which is where the "
-            "original grid stopped, so the value above is that bound rather than a "
-            "solution — it will not move however much dose you add. The 2014 "
-            "application reported it with no warning at all. Turn off *Reproduce the "
-            "2014 results exactly* in the model options to solve it properly.",
+            "This schedule is beyond the range the model can express: its equivalent "
+            "exceeds a thousand reference fractions. The doses above are bounds, not "
+            "solutions, and will not respond to further dose.",
             icon="🚫",
         )
 
@@ -574,10 +566,7 @@ def main() -> None:
                 rows.append(row)
 
         if first_saturated is not None:
-            st.caption(
-                f"Curve stops at {first_saturated:g} — past the 2014 search range. "
-                f"Turn off *Reproduce the 2014 results exactly* to continue it."
-            )
+            st.caption(f"Curve stops at {first_saturated:g}, beyond the model's range.")
         if not rows:
             st.info("Every point in this range is outside the 2014 search interval.")
             st.stop()
