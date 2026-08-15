@@ -36,23 +36,25 @@ CONTRIBUTORS = ["Cyril Voyant", "Daniel Julian"]
 
 REPOSITORY_URL = "https://github.com/cyrilvoyant/LQL-Equiv-web"
 
-ZENODO_DOI = "10.5281/zenodo.16739883"
+ZENODO_DOI = "10.5281/zenodo.21948624"
 #: Zenodo's concept DOI always resolves to the most recent version.
-ZENODO_CONCEPT_DOI = "10.5281/zenodo.16739882"
+ZENODO_CONCEPT_DOI = "10.5281/zenodo.21948623"
+#: The 2014 MATLAB release, from which the radiobiological library is taken.
+ZENODO_DOI_2014 = "10.5281/zenodo.16739883"
 
 SOFTWARE_CITATION = (
-    "Voyant, C., & Julian, D. (2025). LQL-Equiv: Open-Source Software for "
-    "Biologically Equivalent Dose Calculation in Radiotherapy (Version 1.2) "
-    f"[Computer software]. Zenodo. https://doi.org/{ZENODO_DOI}"
+    "Voyant, C., & Julian, D. (2026). LQL-Equiv-web: a validated Python and web "
+    "implementation of biologically equivalent dose calculation in radiotherapy "
+    f"(Version 3.0.0) [Computer software]. Zenodo. https://doi.org/{ZENODO_DOI}"
 )
 
-SOFTWARE_BIBTEX = f"""@software{{voyant_lqlequiv,
+SOFTWARE_BIBTEX = f"""@software{{voyant_lqlequiv_2026,
   author    = {{Voyant, Cyril and Julian, Daniel}},
-  title     = {{{{LQL-Equiv}}: Open-Source Software for Biologically Equivalent
-               Dose Calculation in Radiotherapy}},
-  year      = {{2025}},
+  title     = {{{{LQL-Equiv-web}}: a validated {{Python}} and web implementation of
+               biologically equivalent dose calculation in radiotherapy}},
+  year      = {{2026}},
   publisher = {{Zenodo}},
-  version   = {{1.2}},
+  version   = {{3.0.0}},
   doi       = {{{ZENODO_DOI}}},
   url       = {{https://doi.org/{ZENODO_DOI}}}
 }}"""
@@ -383,7 +385,8 @@ def main() -> None:
                 oar.is_from_2014_release and tum.is_from_2014_release) else ""
             st.caption(
                 "**Source.** Values transcribed from the 2014 MATLAB release "
-                f"([Zenodo {ZENODO_DOI}](https://doi.org/{ZENODO_DOI})), described in "
+                f"([Zenodo {ZENODO_DOI_2014}](https://doi.org/{ZENODO_DOI_2014})), "
+                "described in "
                 "Voyant et al., *Rep Pract Oncol Radiother* 2014;19(1):47–55. The "
                 "Lyman parameters fall in the range of the Emami/Burman fits, which "
                 "is their probable but unverified origin. Full provenance, and the "

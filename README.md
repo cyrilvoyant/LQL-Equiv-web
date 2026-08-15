@@ -1,5 +1,9 @@
 # LQL-Equiv
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21948624.svg)](https://doi.org/10.5281/zenodo.21948624)
+[![tests](https://github.com/cyrilvoyant/LQL-Equiv-web/actions/workflows/ci.yml/badge.svg)](https://github.com/cyrilvoyant/LQL-Equiv-web/actions/workflows/ci.yml)
+[![licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
+
 **Biologically equivalent doses in radiotherapy, under the linear-quadratic-linear model.**
 
 ### ▶ [Open the calculator](https://cyrilvoyant.github.io/LQL-Equiv-web/) — free, no installation, runs entirely in your browser
@@ -23,7 +27,7 @@ by case against it.
 
 ## What it does
 
-Given an organ at risk, a tumour site, and an organ at risk, a tumour site and a sequence of successive treatment
+Given an organ at risk, a tumour site and a sequence of successive treatment
 courses separated by gaps, it computes:
 
 | Quantity | Model |
@@ -215,6 +219,13 @@ If you use this software, cite the methodology paper and the software (see
   linear-quadratic (LQ) and linear-quadratic-linear (LQL) dose models.
   *Clinical Oncology* 2025;45.
   [doi:10.1016/j.clon.2025.103893](https://doi.org/10.1016/j.clon.2025.103893)
+- This software: Voyant C, Julian D. LQL-Equiv-web: a validated Python and web
+  implementation of biologically equivalent dose calculation in radiotherapy
+  (Version 3.0.0) [Computer software]. Zenodo, 2026.
+  [doi:10.5281/zenodo.21948624](https://doi.org/10.5281/zenodo.21948624) —
+  use the concept DOI
+  [10.5281/zenodo.21948623](https://doi.org/10.5281/zenodo.21948623) to cite all
+  versions.
 - The original MATLAB application, archived on Zenodo:
   [doi:10.5281/zenodo.16739883](https://doi.org/10.5281/zenodo.16739883)
 
