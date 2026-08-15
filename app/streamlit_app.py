@@ -699,6 +699,13 @@ def main() -> None:
                 if abs(probe.eqd_tumour_total - target) > max(0.5, 0.02 * target):
                     unreachable += 1
                     continue
+                # How far the organ dose of *this* schedule moves when alpha/beta
+                # is varied. On a fixed schedule this is a well-defined error bar,
+                # unlike a band drawn along the curve, and it is what tells the
+                # reader whether the spread between fraction sizes means anything.
+                band, _ = _alpha_beta_band(
+                    oar_window, tum, schedule, options, library, spread or 0.3
+                )
                 rows.append({
                     f"Dose per fraction ({unit_gy})": dose,
                     "Fractions": count,
@@ -706,6 +713,8 @@ def main() -> None:
                     f"Target reached ({unit})": probe.eqd_tumour_total,
                     "Schedule": f"{count:d} × {dose:g} Gy",
                     "NTCP (%)": probe.ntcp_percent,
+                    "Lower": band[0],
+                    "Upper": band[1],
                 })
             if not rows:
                 st.info("No fractionation reproduces this tumour effect in the range "
@@ -715,29 +724,70 @@ def main() -> None:
                 x_name = f"Dose per fraction ({unit_gy})"
                 y_name = f"Dose to the organ at risk ({unit})"
                 best = frame.loc[frame[y_name].idxmin()]
-                chart = alt.Chart(frame).mark_line(point=True, strokeWidth=2).encode(
+                # Points, not a line: whole-fraction rounding leaves gaps in the
+                # scan, and a line would draw a trend through fraction sizes that
+                # cannot reach this target at all.
+                points = alt.Chart(frame).mark_point(
+                    size=70, filled=True, opacity=0.95
+                ).encode(
                     x=alt.X(f"{x_name}:Q", title=x_name),
                     y=alt.Y(f"{y_name}:Q", axis=_vertical_axis(y_name),
                             scale=alt.Scale(zero=False)),
                     tooltip=["Schedule", alt.Tooltip(f"{y_name}:Q", format=".2f"),
                              alt.Tooltip(f"Target reached ({unit}):Q", format=".2f"),
-                             alt.Tooltip("NTCP (%):Q", format=".2f")],
+                             alt.Tooltip("NTCP (%):Q", format=".2f"),
+                             alt.Tooltip("Lower:Q", format=".2f"),
+                             alt.Tooltip("Upper:Q", format=".2f")],
+                )
+                bars = alt.Chart(frame).mark_rule(strokeWidth=2, opacity=0.35).encode(
+                    x=f"{x_name}:Q", y="Lower:Q", y2="Upper:Q",
+                )
+                # Past the target's transition dose the tumour is on its linear
+                # tail: enlarging fractions stops buying differential advantage
+                # while the organ at risk keeps paying. That is where an apparent
+                # optimum should be read with most suspicion.
+                marks = pd.DataFrame([
+                    {x_name: tum.dt, "Tissue": f"{tum.name} transition dose"},
+                    {x_name: oar.dt, "Tissue": f"{oar.name} transition dose"},
+                ])
+                thresholds = alt.Chart(marks).mark_rule(
+                    strokeDash=[5, 4], opacity=0.55
+                ).encode(
+                    x=f"{x_name}:Q",
+                    color=alt.Color("Tissue:N", title=None,
+                                    legend=alt.Legend(orient="bottom")),
                 )
                 highlight = alt.Chart(pd.DataFrame([best])).mark_point(
-                    size=180, color="crimson", filled=True
+                    size=190, color="crimson", filled=True
                 ).encode(x=f"{x_name}:Q", y=f"{y_name}:Q")
-                st.altair_chart((chart + highlight).properties(height=340),
-                                use_container_width=True)
-                complication = best["NTCP (%)"]
-                st.success(
-                    f"Holding the target near {target:.2f} {unit}, the least costly "
-                    f"whole-fraction schedule is **{best['Schedule']}** — reaching "
-                    f"{best[f'Target reached ({unit})']:.2f} {unit_gy} on the target "
-                    f"and giving **{best[y_name]:.2f} {unit}** to the "
-                    f"{oar.name.lower()}"
-                    + (f", for a {complication:.1f} % complication probability."
-                       if complication is not None and pd.notna(complication) else ".")
+                st.altair_chart(
+                    (points + bars + thresholds + highlight).properties(height=340),
+                    use_container_width=True,
                 )
+                # Only call a schedule best if its uncertainty bar clears every
+                # other one. Otherwise the ranking is an artefact of parameters
+                # nobody knows to that precision, and saying so is the honest
+                # output.
+                others = frame.drop(best.name)
+                resolved = not others.empty and best["Upper"] < others["Lower"].min()
+                lowest, highest = frame["Lower"].min(), frame["Upper"].max()
+                if resolved:
+                    st.success(
+                        f"**{best['Schedule']}** costs the {oar.name.lower()} least, "
+                        f"{best[y_name]:.2f} {unit}, and the α/β uncertainty does not "
+                        f"overlap any other schedule scanned."
+                    )
+                else:
+                    st.warning(
+                        f"**The scan does not resolve a best schedule.** Organ doses "
+                        f"span {frame[y_name].min():.2f}–{frame[y_name].max():.2f} "
+                        f"{unit_gy} across fraction sizes, while the α/β uncertainty "
+                        f"on a single schedule already spans {lowest:.2f}–{highest:.2f} "
+                        f"{unit_gy}. The lowest point, {best['Schedule']}, is marked, "
+                        f"but the difference between schedules is smaller than what "
+                        f"the parameters support.",
+                        icon="⚠",
+                    )
                 if unreachable:
                     st.caption(
                         f"{unreachable} of the 19 fraction sizes scanned are not shown: "
@@ -746,11 +796,14 @@ def main() -> None:
                         f"rather than a gap in the scan."
                     )
                 st.caption(
-                    "Organ at risk modelled without proliferation, as a late-responding "
-                    "tissue. No α/β band here: varying α/β would change the number of "
-                    "fractions needed to hold the target, so the envelope would stop "
-                    "comparing iso-effective schedules. A model comparison, not a "
-                    "clinical recommendation."
+                    f"Bars are the organ dose under α/β varied by ±{(spread or 0.3) * 100:.0f} % "
+                    f"on that same schedule. Dashed lines mark the transition doses to the "
+                    f"linear tail: past {tum.dt:g} Gy the target is on its tail, so larger "
+                    f"fractions stop buying differential advantage while the "
+                    f"{oar.name.lower()} keeps paying. Points, not a curve — whole-fraction "
+                    f"rounding leaves real gaps. Organ at risk modelled without "
+                    f"proliferation, as a late-responding tissue. A model comparison, not "
+                    f"a clinical recommendation."
                 )
 
     with scenario_tab:
