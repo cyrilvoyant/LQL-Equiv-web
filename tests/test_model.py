@@ -83,6 +83,42 @@ def test_hypofractionation_raises_late_tissue_dose(library):
     assert hypofractionated.eqd_oar_total > conventional.eqd_oar_total
 
 
+def test_repopulation_cancels_when_the_schedule_is_the_reference(library):
+    """At the reference fraction size and no gap, repopulation cancels exactly.
+
+    Both sides of the comparison then run for the same time and lose the same
+    dose, so the equivalent dose is the physical dose whatever the tumour --
+    even though the two BEDs differ.
+    """
+    organ = library.organ("Rectum")
+    standard = library.tumour_site("Standard tumour")
+    neutral = library.tumour_site("Standard tumour, no repopulation")
+    plan = Prescription(courses=(Course(2.0, 25),), reference_dose=2.0)
+
+    with_repopulation = compute(organ, standard, plan)
+    without = compute(organ, neutral, plan)
+    assert with_repopulation.eqd_tumour_total == pytest.approx(50.0, abs=0.02)
+    assert without.eqd_tumour_total == pytest.approx(50.0, abs=0.02)
+    # The BEDs are not equal, only the equivalent doses.
+    assert with_repopulation.courses[0].bed_tumour < without.courses[0].bed_tumour
+
+
+@pytest.mark.parametrize("gap", [5, 10, 20, 30])
+def test_a_treatment_gap_costs_a_repopulating_tumour_and_no_other(library, gap):
+    """A gap erodes the equivalent dose only if the tumour repopulates."""
+    organ = library.organ("Rectum")
+    plan = Prescription(courses=(Course(2.0, 25, gap),), reference_dose=2.0)
+
+    standard = compute(organ, library.tumour_site("Standard tumour"), plan)
+    neutral = compute(organ, library.tumour_site("Standard tumour, no repopulation"), plan)
+    assert neutral.eqd_tumour_total == pytest.approx(50.0, abs=0.02)
+    assert standard.eqd_tumour_total < 50.0
+    # Longer interruptions cost more.
+    longer = compute(organ, library.tumour_site("Standard tumour"),
+                     Prescription(courses=(Course(2.0, 25, gap + 5),), reference_dose=2.0))
+    assert longer.eqd_tumour_total < standard.eqd_tumour_total
+
+
 def test_ntcp_is_a_normal_tissue_quantity(library):
     """Complication probability is defined for organs at risk only."""
     organ = library.organ("Rectum")

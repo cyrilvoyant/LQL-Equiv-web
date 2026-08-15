@@ -135,6 +135,41 @@ schedule under consideration. EQD2 is what lets two schedules with different
 fraction sizes be compared. Any reference fraction size can be used here, not
 only 2 Gy.
 
+**Which way does repopulation move the equivalent dose?**
+Both ways, depending on whether the schedule runs longer or shorter than the
+reference schedule it is being matched against. Repopulation penalises *both*
+sides of the comparison, and the longer side loses more. Against the standard
+tumour, which repopulates at 0.66 Gy/day past a kick-off time of 21 days:
+
+*A schedule prolonged by a treatment gap — 25 × 2 Gy, reference 2 Gy:*
+
+| Gap | Standard tumour | Repopulation switched off |
+| ---: | ---: | ---: |
+| 0 days | 50.00 Gy | 50.00 Gy |
+| 10 days | **37.48 Gy** | 50.00 Gy |
+| 30 days | 19.20 Gy | 50.00 Gy |
+
+Here repopulation lowers the equivalent dose, and a ten-day interruption costs
+12.5 Gy EQD2 — more than six 2 Gy fractions. With repopulation switched off a gap
+costs nothing at all. Note the zero-gap row: both tumours give exactly 50 Gy even
+though their BEDs differ (50.76 against 60.00), because the schedule *is* the
+reference schedule and the repopulation loss cancels on both sides.
+
+*A schedule shortened by hypofractionation — 20 × 3 Gy, reference 2 Gy:*
+
+| | BED | EQD2 | equivalent reference schedule |
+| --- | ---: | ---: | --- |
+| Standard tumour | 73.38 | **80.66** | 40.33 fractions, 56.5 days |
+| Repopulation switched off | 78.00 | 65.00 | 32.50 fractions, 45.5 days |
+
+Here it goes the other way: the 20-fraction schedule runs 28 days and loses
+0.66 × 7 ≈ 4.6 Gy, while the reference schedule matched to it runs 56.5 days and
+loses 0.66 × 35.5 ≈ 23 Gy — five times as much — so more reference dose is needed
+and the equivalent dose rises. This is the familiar result that short accelerated
+schedules are favoured in fast-repopulating tumours.
+
+Isolating this effect is what the added non-repopulating tumour is for.
+
 **Can this be used to treat a patient?**
 No. It is for research and education only, it is not a medical device, and it
 must not be used to plan, verify or modify a patient's treatment.
