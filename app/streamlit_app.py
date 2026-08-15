@@ -10,6 +10,7 @@ import json
 import sys
 from pathlib import Path
 
+import altair as alt
 import pandas as pd
 import streamlit as st
 
@@ -31,6 +32,23 @@ from lqlequiv.tissues import load_library  # noqa: E402
 
 CONTRIBUTORS = ["Cyril Voyant", "Daniel Julian"]
 
+REPOSITORY_URL = "https://github.com/cyrilvoyant/LQL-Equiv-web"
+
+SOFTWARE_CITATION = (
+    "Voyant C, Julian D. LQL-Equiv: biologically equivalent doses in radiotherapy "
+    "under the linear-quadratic-linear model. Version 3.0.0, 2026.\n"
+    f"{REPOSITORY_URL}"
+)
+
+SOFTWARE_BIBTEX = """@software{voyant_lqlequiv_2026,
+  author  = {Voyant, Cyril and Julian, Daniel},
+  title   = {{LQL-Equiv}: biologically equivalent doses in radiotherapy
+             under the linear-quadratic-linear model},
+  version = {3.0.0},
+  year    = {2026},
+  url     = {https://github.com/cyrilvoyant/LQL-Equiv-web}
+}"""
+
 REFERENCES = [
     ("Voyant C, Julian D, Roustit R, Biffi K, Lantieri C. "
      "Biological effects and equivalent doses in radiotherapy: a software solution. "
@@ -48,8 +66,40 @@ REFERENCES = [
      "https://doi.org/10.5281/zenodo.16739883"),
 ]
 
+# A dose-response sigmoid rising through a fraction grid: the two things the
+# software puts together. Drawn inline so the page stays self-contained.
+LOGO = """
+<svg viewBox="0 0 190 54" role="img" aria-label="LQL-Equiv" width="190" height="54">
+  <defs>
+    <linearGradient id="lqlg" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0%" stop-color="#3b6ea5"/>
+      <stop offset="100%" stop-color="#4aa3a3"/>
+    </linearGradient>
+  </defs>
+  <g opacity="0.30" stroke="currentColor" stroke-width="0.7">
+    <line x1="6" y1="46" x2="52" y2="46"/><line x1="6" y1="8" x2="6" y2="46"/>
+    <line x1="15" y1="44" x2="15" y2="46"/><line x1="24" y1="44" x2="24" y2="46"/>
+    <line x1="33" y1="44" x2="33" y2="46"/><line x1="42" y1="44" x2="42" y2="46"/>
+  </g>
+  <path d="M6 45 C 20 45, 24 40, 29 27 C 34 14, 38 9, 52 9"
+        fill="none" stroke="url(#lqlg)" stroke-width="3.4" stroke-linecap="round"/>
+  <circle cx="29" cy="27" r="3.6" fill="url(#lqlg)"/>
+  <text x="64" y="27" font-family="ui-sans-serif, system-ui, sans-serif"
+        font-size="21" font-weight="640" fill="currentColor"
+        letter-spacing="-0.4">LQL-Equiv</text>
+  <text x="65" y="42" font-family="ui-sans-serif, system-ui, sans-serif"
+        font-size="10.5" fill="currentColor" opacity="0.62"
+        letter-spacing="0.3">equivalent doses in radiotherapy</text>
+</svg>
+"""
+
 STYLE = """
 <style>
+  .lql-head {display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+             margin-bottom: 0.2rem;}
+  .lql-head svg {flex: none;}
+  .lql-byline {font-size: 0.85rem; opacity: 0.75;}
+  .lql-pitch {font-size: 0.9rem; line-height: 1.6;}
   .block-container {padding-top: 2.4rem; max-width: 1150px;}
   h1 {font-size: 1.65rem !important; font-weight: 600; letter-spacing: -0.01em;}
   h2 {font-size: 1.15rem !important; font-weight: 600; margin-top: 1.6rem;}
@@ -99,12 +149,68 @@ def _format(value: float | None, unit: str = "", digits: int = 2) -> str:
     return f"{value:.{digits}f}{unit}"
 
 
+def _schedule_label(prescription: Prescription) -> str:
+    """Render a prescription the way it is written on a chart: 5 x 2.2 Gy + 2 x 6.5 Gy."""
+    parts = []
+    for course in prescription.courses:
+        if course.is_empty:
+            continue
+        piece = f"{course.n_fractions:g} × {course.dose_per_fraction:g} Gy"
+        if course.gap_days:
+            piece += f" (after {course.gap_days:g} d)"
+        parts.append(piece)
+    label = " + ".join(parts) if parts else "—"
+    if prescription.bifractionated:
+        label += ", 2/day"
+    return label
+
+
+def _fractions_matching_tumour_dose(
+    target: float, dose: float, oar, tum, prescription, options, library,
+    tolerance: float = 0.05,
+) -> float | None:
+    """Fractions of ``dose`` giving the same tumour equivalent dose as ``target``.
+
+    Bisected on the fraction count, which the tumour equivalent dose increases
+    with. A coarse scan is not good enough here: stepping the fraction count by
+    half a fraction leaves most fraction sizes unable to reach the target at all,
+    which punches holes in the curve.
+
+    Returns ``None`` when no fraction count in range reaches the target.
+    """
+    def tumour_dose(count: float) -> float:
+        return compute(oar, tum, Prescription(
+            courses=(Course(dose, count, prescription.courses[0].gap_days),),
+            reference_dose=prescription.reference_dose,
+            bifractionated=prescription.bifractionated,
+        ), options, library).eqd_tumour_total
+
+    low, high = 0.1, 100.0
+    if tumour_dose(low) > target or tumour_dose(high) < target:
+        return None
+    for _ in range(60):
+        middle = (low + high) / 2
+        if tumour_dose(middle) < target:
+            low = middle
+        else:
+            high = middle
+        if high - low < 1e-4:
+            break
+    count = (low + high) / 2
+    return count if abs(tumour_dose(count) - target) <= tolerance else None
+
+
 def main() -> None:
     st.set_page_config(page_title="LQL-Equiv", page_icon="◐", layout="wide")
     st.markdown(STYLE, unsafe_allow_html=True)
     library = load_library()
 
-    st.title("LQL-Equiv")
+    st.markdown(
+        f"<div class='lql-head'>{LOGO}"
+        "<div><div style='font-weight:600;font-size:1.05rem;'>Version 3.0</div>"
+        "<div class='lql-byline'>Cyril Voyant and Daniel Julian</div></div></div>",
+        unsafe_allow_html=True,
+    )
     st.markdown(
         "<p class='lql-note'>Biologically equivalent doses in radiotherapy under the "
         "linear-quadratic-linear model &mdash; biologically effective dose, equivalent "
@@ -203,19 +309,20 @@ def main() -> None:
 
     # ---------------------------------------------------------------- results
     st.header("Results")
-    unit = f"Gy (EQD{reference_dose:g})"
+    unit_gy = "Gy"
+    unit = f"Gy EQD{reference_dose:g}"
     columns = st.columns(4)
     columns[0].metric(
-        f"Equivalent dose — {oar.name}",
+        f"OAR — {oar.name}",
         "not computable" if not result.oar_total_valid
-        else f"{result.eqd_oar_total:.2f}",
+        else f"{result.eqd_oar_total:.2f} {unit_gy}",
         help=f"Cumulative equivalent dose to the organ at risk, in {unit}.",
     )
     columns[1].metric(
-        f"Equivalent dose — {tum.name}",
+        f"Target — {tum.name}",
         "not computable" if not result.tumour_total_valid
-        else f"{result.eqd_tumour_total:.2f}",
-        help=f"Cumulative equivalent dose to the tumour, in {unit}.",
+        else f"{result.eqd_tumour_total:.2f} {unit_gy}",
+        help=f"Cumulative equivalent dose to the target volume, in {unit}.",
     )
     columns[2].metric(
         "Complication probability",
@@ -248,10 +355,10 @@ def main() -> None:
             "Fractions": course.n_fractions,
             "Gap (d)": course.gap_days,
             "Overall time (d)": row.overall_days_oar,
-            "BED organ (Gy)": row.bed_oar,
-            "EQD organ (Gy)": row.eqd_oar,
-            "BED tumour (Gy)": row.bed_tumour,
-            "EQD tumour (Gy)": row.eqd_tumour,
+            "BED OAR (Gy)": row.bed_oar,
+            f"EQD OAR ({unit_gy})": row.eqd_oar,
+            "BED target (Gy)": row.bed_tumour,
+            f"EQD target ({unit_gy})": row.eqd_tumour,
         }
         for index, (course, row) in enumerate(zip(prescription.courses, result.courses), 1)
         if not course.is_empty
@@ -265,56 +372,146 @@ def main() -> None:
         ["Isoeffect curves", "Therapeutic window", "Scenarios", "About"]
     )
 
+    dose_axis = f"Equivalent dose ({unit})"
+
     with isoeffect_tab:
-        st.markdown("Equivalent dose against the number of fractions of the first "
-                    "course, all else held equal.")
+        st.markdown(
+            "How the equivalent dose of the **first course** grows as it is "
+            "lengthened, everything else held as entered. The vertical line marks "
+            "the schedule currently entered."
+        )
+        sweep = st.radio(
+            "Vary", ["Number of fractions", "Dose per fraction"],
+            horizontal=True, key="isoeffect_axis",
+        )
         rows = []
-        for count in range(1, 61):
+        if sweep == "Number of fractions":
+            x_title, x_current = "Number of fractions", course1.n_fractions
+            values = [n / 2 for n in range(2, 121)]
+            def _course(v):
+                return Course(course1.dose_per_fraction, v, course1.gap_days)
+        else:
+            x_title, x_current = f"Dose per fraction ({unit_gy})", course1.dose_per_fraction
+            values = [d / 4 for d in range(4, 61)]
+            def _course(v):
+                return Course(v, course1.n_fractions, course1.gap_days)
+
+        for value in values:
             probe = compute(oar, tum, Prescription(
-                courses=(Course(course1.dose_per_fraction, count, course1.gap_days),
-                         course2, course3),
+                courses=(_course(value), course2, course3),
                 reference_dose=reference_dose, bifractionated=bifractionated,
             ), options, library)
-            rows.append({"Fractions": count,
-                         oar.name: probe.eqd_oar_total,
-                         tum.name: probe.eqd_tumour_total})
-        st.line_chart(pd.DataFrame(rows).set_index("Fractions"))
+            rows.append({x_title: value, "Tissue": f"{oar.name} (OAR)",
+                         dose_axis: probe.eqd_oar_total})
+            rows.append({x_title: value, "Tissue": f"{tum.name} (target)",
+                         dose_axis: probe.eqd_tumour_total})
+
+        frame = pd.DataFrame(rows)
+        curve = alt.Chart(frame).mark_line(strokeWidth=2).encode(
+            x=alt.X(f"{x_title}:Q", title=x_title),
+            y=alt.Y(f"{dose_axis}:Q", title=dose_axis),
+            color=alt.Color("Tissue:N", title=None,
+                            legend=alt.Legend(orient="top")),
+            tooltip=[x_title, "Tissue", alt.Tooltip(f"{dose_axis}:Q", format=".2f")],
+        )
+        marker = alt.Chart(pd.DataFrame({x_title: [x_current]})).mark_rule(
+            strokeDash=[4, 4], color="grey"
+        ).encode(x=f"{x_title}:Q")
+        st.altair_chart((curve + marker).properties(height=340), use_container_width=True)
 
     with window_tab:
         st.markdown(
-            "Tumour against organ-at-risk equivalent dose as the dose per fraction "
-            "varies at constant total physical dose. Points above the diagonal "
-            "favour the tumour."
+            f"**Which fraction size reaches the same tumour effect at the lowest cost "
+            f"to the {oar.name.lower()}?** The tumour equivalent dose is held at the "
+            f"value of the schedule entered; for every fraction size the number of "
+            f"fractions is adjusted to keep it there, and the resulting dose to the "
+            f"organ at risk is plotted. The lowest point is the best fractionation "
+            f"for that tumour effect."
         )
-        total = course1.total_dose
-        rows = []
-        if total > 0:
-            for tenths in range(10, 101, 2):
-                dose = tenths / 10.0
+        target = result.eqd_tumour_total
+        if target <= 0 or not result.tumour_total_valid:
+            st.info("Enter a first course to draw the therapeutic window.")
+        else:
+            rows = []
+            for step in range(2, 21):
+                dose = step / 2.0
+                count = _fractions_matching_tumour_dose(
+                    target, dose, oar, tum, prescription, options, library
+                )
+                if count is None:
+                    continue
                 probe = compute(oar, tum, Prescription(
-                    courses=(Course(dose, total / dose, course1.gap_days),
-                             course2, course3),
+                    courses=(Course(dose, count, course1.gap_days),),
                     reference_dose=reference_dose, bifractionated=bifractionated,
                 ), options, library)
-                rows.append({"Dose per fraction (Gy)": dose,
-                             "Organ at risk (Gy)": probe.eqd_oar_total,
-                             "Tumour (Gy)": probe.eqd_tumour_total})
-            frame = pd.DataFrame(rows)
-            st.scatter_chart(frame, x="Organ at risk (Gy)", y="Tumour (Gy)",
-                             color="Dose per fraction (Gy)")
-            st.caption(f"Total physical dose held at {total:.4g} Gy.")
-        else:
-            st.info("Enter a first course to draw the therapeutic window.")
+                rows.append({
+                    f"Dose per fraction ({unit_gy})": dose,
+                    "Fractions": count,
+                    f"Dose to the organ at risk ({unit})": probe.eqd_oar_total,
+                    "Schedule": f"{count:.1f} × {dose:g} Gy",
+                    "NTCP (%)": probe.ntcp_percent,
+                })
+            if not rows:
+                st.info("No fractionation reproduces this tumour effect in the range "
+                        "scanned. Try a different schedule.")
+            else:
+                frame = pd.DataFrame(rows)
+                x_name = f"Dose per fraction ({unit_gy})"
+                y_name = f"Dose to the organ at risk ({unit})"
+                best = frame.loc[frame[y_name].idxmin()]
+                chart = alt.Chart(frame).mark_line(point=True, strokeWidth=2).encode(
+                    x=alt.X(f"{x_name}:Q", title=x_name),
+                    y=alt.Y(f"{y_name}:Q", title=y_name,
+                            scale=alt.Scale(zero=False)),
+                    tooltip=["Schedule", alt.Tooltip(f"{y_name}:Q", format=".2f"),
+                             alt.Tooltip("NTCP (%):Q", format=".2f")],
+                )
+                highlight = alt.Chart(pd.DataFrame([best])).mark_point(
+                    size=180, color="crimson", filled=True
+                ).encode(x=f"{x_name}:Q", y=f"{y_name}:Q")
+                st.altair_chart((chart + highlight).properties(height=340),
+                                use_container_width=True)
+                complication = best["NTCP (%)"]
+                st.success(
+                    f"At a tumour equivalent dose of {target:.2f} {unit}, the least "
+                    f"costly schedule scanned is **{best['Schedule']}**, giving "
+                    f"**{best[y_name]:.2f} {unit}** to the {oar.name.lower()}"
+                    + (f", for a {complication:.1f} % complication probability."
+                       if complication is not None and pd.notna(complication) else ".")
+                )
+                at_edge = best[x_name] in (frame[x_name].min(), frame[x_name].max())
+                if oar.dprol > 0 and at_edge:
+                    st.warning(
+                        f"The optimum sits at the edge of the range scanned, and "
+                        f"{oar.name.lower()} carries a repopulation dose of "
+                        f"{oar.dprol:g} Gy/day. Protracting treatment then *appears* to "
+                        f"spare the organ at risk, because the model lets it repopulate "
+                        f"too. That is a property of the model, not of late-responding "
+                        f"normal tissue, and this optimum should not be read as a "
+                        f"recommendation. Compare fraction sizes within a clinically "
+                        f"plausible range instead."
+                    )
+                st.caption(
+                    "Single course only, and a model comparison rather than a clinical "
+                    "recommendation: it accounts for fraction size and overall time, "
+                    "not for dose distribution, volume effects or the constraints of "
+                    "any real plan."
+                )
 
     with scenario_tab:
-        name = st.text_input("Scenario name", value=f"{course1.n_fractions:g} × "
-                                                   f"{course1.dose_per_fraction:g} Gy")
+        schedule = _schedule_label(prescription)
+        st.caption(f"Current schedule: **{schedule}**")
+        name = st.text_input("Scenario name", value=schedule)
         if st.button("Save this scenario", type="primary"):
             st.session_state.setdefault("scenarios", []).append({
-                "Scenario": name, "Organ at risk": oar.name, "Tumour": tum.name,
+                "Scenario": name,
+                "Schedule": schedule,
+                "Total dose (Gy)": sum(c.total_dose for c in prescription.courses),
+                "OAR": oar.name,
+                "Target": tum.name,
                 "Reference (Gy)": reference_dose,
-                "EQD organ (Gy)": None if not result.oar_total_valid else result.eqd_oar_total,
-                "EQD tumour (Gy)": None if not result.tumour_total_valid else result.eqd_tumour_total,
+                "EQD OAR (Gy)": None if not result.oar_total_valid else result.eqd_oar_total,
+                "EQD target (Gy)": None if not result.tumour_total_valid else result.eqd_tumour_total,
                 "NTCP (%)": result.ntcp_percent, "TCP (%)": result.tcp_percent,
             })
         saved = st.session_state.get("scenarios", [])
@@ -334,18 +531,76 @@ def main() -> None:
             st.caption("No scenario saved yet.")
 
     with about_tab:
+        st.markdown("#### What it is for")
+        st.markdown(
+            "<p class='lql-pitch'>Comparing radiotherapy schedules that differ in "
+            "fraction size, fraction number or overall time is not a matter of adding "
+            "up physical dose: 20 × 3 Gy and 30 × 2 Gy are both 60 Gy and are not the "
+            "same treatment. LQL-Equiv converts any schedule into the dose that would "
+            "produce the same biological effect in a reference fractionation, for the "
+            "target volume and for an organ at risk at the same time, and estimates "
+            "the resulting complication and control probabilities.<br><br>"
+            "It is built for teaching radiobiology, for designing and comparing "
+            "schedules in protocol and research work, for re-irradiation questions "
+            "where earlier courses have to be carried forward, and for sanity-checking "
+            "equivalences by hand.</p>",
+            unsafe_allow_html=True,
+        )
+
+        st.markdown("#### What it does that a plain BED calculator does not")
+        st.markdown(
+            "- **The linear-quadratic-linear model, not only the linear-quadratic one.** "
+            "Above a transition dose the quadratic term is replaced by a straight line, "
+            "so large fractions are not over-penalised. A pure LQ calculator "
+            "systematically overstates the effect of stereotactic fraction sizes.\n"
+            "- **Overall treatment time is modelled, not ignored.** Accelerated "
+            "repopulation with a kick-off time, and treatment gaps. A ten-day "
+            "interruption is worth about 12 Gy EQD2 on a fast-repopulating tumour; "
+            "calculators that take only dose and fraction number cannot see that.\n"
+            "- **Up to three successive courses**, each with its own fraction size and "
+            "its own preceding gap, accumulated correctly — which is what a "
+            "re-irradiation question actually needs.\n"
+            "- **Two fractions a day**, with Thames' incomplete-repair correction.\n"
+            "- **Organ at risk and target together**, plus NTCP and TCP, rather than a "
+            "single number for a single tissue.\n"
+            "- **A radiobiological library of 34 organs at risk and 20 target sites**, "
+            "so the parameters do not have to be looked up and typed in.\n"
+            "- **Traceable.** Open source under MIT, every parameter's provenance "
+            "recorded, and validated against the published 2014 implementation over "
+            "4438 schedules with the test data in the repository. Very few dose "
+            "calculators can be checked at all.\n"
+            "- **Private and free.** It runs inside your browser; nothing you enter is "
+            "transmitted anywhere."
+        )
+        st.caption(
+            "Model comparison only, and no substitute for a treatment planning system: "
+            "it knows nothing of dose distribution, volume effects or plan constraints."
+        )
+
         st.markdown("#### Contributors")
         for person in CONTRIBUTORS:
             st.markdown(f"- **{person}**")
+
+        st.markdown("#### Citing this software")
+        st.markdown(
+            "If you use LQL-Equiv in academic work, please cite both the software "
+            "and the methodology paper."
+        )
+        st.code(SOFTWARE_CITATION, language=None)
+        st.caption("BibTeX")
+        st.code(SOFTWARE_BIBTEX, language="bibtex")
+
         st.markdown("#### References")
         for text, url in REFERENCES:
             st.markdown(f"- {text} [{url}]({url})")
-        st.markdown("#### Licence")
+
+        st.markdown("#### Licence and provenance")
         st.markdown(
             "Released under the MIT licence. The radiobiological library is "
-            "transcribed from the 2014 release; see `docs/PARAMETERS.md` for the "
-            "provenance of every value, and `docs/COMPARISON-2014.md` for the "
-            "quantified comparison against the original MATLAB application."
+            "transcribed from the 2014 release; `docs/PARAMETERS.md` records the "
+            "provenance of every value and `docs/COMPARISON-2014.md` the quantified "
+            "comparison against the original MATLAB application. "
+            f"[Source code and documentation]({REPOSITORY_URL})."
         )
 
     st.markdown(
