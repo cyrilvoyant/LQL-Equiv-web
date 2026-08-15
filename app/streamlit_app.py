@@ -184,6 +184,16 @@ def _course_inputs(position: int, use_sliders: bool) -> Course:
     return Course(dose, fractions, gap)
 
 
+def _vertical_axis(title: str):
+    """A y axis whose title runs along it, rather than sitting above it.
+
+    The default theme lays axis titles out horizontally at the top of the axis,
+    which reads as a stray caption rather than a label.
+    """
+    return alt.Axis(title=title, titleAngle=270, titleAnchor="middle",
+                    titleAlign="center", titlePadding=10)
+
+
 def _format(value: float | None, unit: str = "", digits: int = 2) -> str:
     if value is None:
         return "not available"
@@ -426,8 +436,6 @@ def main() -> None:
                 courses.append(_course_inputs(position, use_sliders))
 
     course1 = courses[0]
-    course2 = courses[1] if len(courses) > 1 else Course(0.0, 0.0, 0.0)
-    course3 = courses[2] if len(courses) > 2 else Course(0.0, 0.0, 0.0)
 
     prescription = Prescription(
         courses=tuple(courses),
@@ -529,28 +537,41 @@ def main() -> None:
     dose_axis = f"Equivalent dose ({unit})"
 
     with isoeffect_tab:
-        st.markdown("Equivalent dose of the **first course**, everything else held "
-                    "as entered.")
+        # Always the last course: it is the one being decided -- the boost, or the
+        # re-irradiation -- while the earlier ones are already delivered.
+        position = len(courses)
+        swept = courses[position - 1]
         sweep = st.radio(
             "Vary", ["Number of fractions", "Dose per fraction"],
             horizontal=True, key="isoeffect_axis",
         )
+        st.markdown(
+            f"Cumulative equivalent dose over the whole prescription as the **last "
+            f"course** is varied — course {position}, entered as "
+            f"**{swept.n_fractions:g} × {swept.dose_per_fraction:g} Gy**"
+            + (f" after {swept.gap_days:g} d" if swept.gap_days else "")
+            + (f". Courses 1 to {position - 1} are held as entered."
+               if position > 1 else ".")
+        )
+
         rows = []
         if sweep == "Number of fractions":
-            x_title, x_current = "Number of fractions", course1.n_fractions
+            x_title, x_current = "Number of fractions", swept.n_fractions
             values = [n / 2 for n in range(2, 121)]
             def _course(v):
-                return Course(course1.dose_per_fraction, v, course1.gap_days)
+                return Course(swept.dose_per_fraction, v, swept.gap_days)
         else:
-            x_title, x_current = f"Dose per fraction ({unit_gy})", course1.dose_per_fraction
+            x_title, x_current = f"Dose per fraction ({unit_gy})", swept.dose_per_fraction
             values = [d / 4 for d in range(4, 61)]
             def _course(v):
-                return Course(v, course1.n_fractions, course1.gap_days)
+                return Course(v, swept.n_fractions, swept.gap_days)
 
         first_saturated = None
         for value in values:
+            varied = list(courses)
+            varied[position - 1] = _course(value)
             plan = Prescription(
-                courses=(_course(value), course2, course3),
+                courses=tuple(varied),
                 reference_dose=reference_dose, bifractionated=bifractionated,
             )
             probe = compute(oar, tum, plan, options, library)
@@ -586,7 +607,7 @@ def main() -> None:
         colour = alt.Color("Tissue:N", title=None, legend=alt.Legend(orient="top"))
         curve = alt.Chart(frame).mark_line(strokeWidth=2).encode(
             x=alt.X(f"{x_title}:Q", title=x_title),
-            y=alt.Y(f"{dose_axis}:Q", title=dose_axis),
+            y=alt.Y(f"{dose_axis}:Q", axis=_vertical_axis(dose_axis)),
             color=colour,
             tooltip=[x_title, "Tissue", alt.Tooltip(f"{dose_axis}:Q", format=".2f"),
                      alt.Tooltip("Lower:Q", format=".2f"),
@@ -598,7 +619,7 @@ def main() -> None:
             # title; the band is translucent enough to sit over it.
             curve = curve + alt.Chart(frame).mark_area(opacity=0.18).encode(
                 x=alt.X(f"{x_title}:Q", title=x_title),
-                y=alt.Y("Lower:Q", title=dose_axis),
+                y=alt.Y("Lower:Q", axis=_vertical_axis(dose_axis)),
                 y2=alt.Y2("Upper:Q"),
                 color=colour,
             )
@@ -609,7 +630,9 @@ def main() -> None:
         marker = alt.Chart(nearest).mark_point(
             size=110, filled=True, opacity=0.9
         ).encode(
-            x=f"{x_title}:Q", y=f"{dose_axis}:Q", color=alt.Color("Tissue:N", title=None),
+            x=f"{x_title}:Q",
+            y=alt.Y(f"{dose_axis}:Q", axis=_vertical_axis(dose_axis)),
+            color=alt.Color("Tissue:N", title=None),
             tooltip=[x_title, "Tissue", alt.Tooltip(f"{dose_axis}:Q", format=".2f")],
         )
         st.altair_chart((curve + marker).properties(height=340), use_container_width=True)
@@ -683,7 +706,7 @@ def main() -> None:
                 best = frame.loc[frame[y_name].idxmin()]
                 chart = alt.Chart(frame).mark_line(point=True, strokeWidth=2).encode(
                     x=alt.X(f"{x_name}:Q", title=x_name),
-                    y=alt.Y(f"{y_name}:Q", title=y_name,
+                    y=alt.Y(f"{y_name}:Q", axis=_vertical_axis(y_name),
                             scale=alt.Scale(zero=False)),
                     tooltip=["Schedule", alt.Tooltip(f"{y_name}:Q", format=".2f"),
                              alt.Tooltip("NTCP (%):Q", format=".2f")],
@@ -691,7 +714,8 @@ def main() -> None:
                 if show_band and spread > 0:
                     chart = chart + alt.Chart(frame).mark_area(opacity=0.18).encode(
                         x=alt.X(f"{x_name}:Q", title=x_name),
-                        y=alt.Y("Lower:Q", title=y_name, scale=alt.Scale(zero=False)),
+                        y=alt.Y("Lower:Q", axis=_vertical_axis(y_name),
+                                scale=alt.Scale(zero=False)),
                         y2=alt.Y2("Upper:Q"),
                     )
                 highlight = alt.Chart(pd.DataFrame([best])).mark_point(
