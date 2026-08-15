@@ -177,9 +177,12 @@ def _course_inputs(position: int, use_sliders: bool) -> Course:
         fractions = _value_input("Number of fractions", f"n{position}", 0.0, 100.0, 1.0,
                                  25.0 if position == 1 else 0.0, use_sliders)
     with right:
-        gap = _value_input("Gap before this course (days)", f"g{position}", 0.0, 60.0, 1.0,
-                           0.0, use_sliders,
-                           "Treatment-free days between the previous course and this one.")
+        gap = _value_input("Missed treatment days before this course", f"g{position}",
+                           0.0, 60.0, 1.0, 0.0, use_sliders,
+                           "Treatment sessions missed before this course, not calendar "
+                           "days: weekends falling inside the interruption are added by "
+                           "the calendar model itself. A calendar interruption of g days "
+                           "is about 5g/7 missed sessions.")
     st.caption(f"Total physical dose: **{dose * fractions:.4g} Gy**")
     return Course(dose, fractions, gap)
 

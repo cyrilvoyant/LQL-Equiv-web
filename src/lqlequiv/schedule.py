@@ -87,6 +87,14 @@ def course_days(
 
     Two fractions a day halve the number of treatment days. The 2014 source
     rounds an odd fraction count up (``floor(n / 2) + 1``) before adding the gap.
+
+    **The gap is a number of missed treatment days, not calendar days.** It is
+    added to the fraction count and the sum is then converted, so that weekends
+    falling inside the interruption are counted like any other weekend: seven
+    missed sessions extend a 35-fraction course by eleven calendar days, not
+    seven. Entering a calendar duration here overstates the interruption by
+    about two fifths; a calendar interruption of :math:`g` days corresponds to
+    roughly :math:`5g/7` missed sessions.
     """
     if not bifractionated:
         effective = n_fractions + gap_days

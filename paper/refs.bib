@@ -1,0 +1,480 @@
+% ---------------------------------------------------------------------------
+% LQL-Equiv -- SoftwareX manuscript
+% References drawn from the 2014 methodology paper, the 2025 LQ/LQL comparison
+% and the standardisation study, plus the software records themselves.
+% ---------------------------------------------------------------------------
+
+% --- The software line ------------------------------------------------------
+
+@article{voyant2014,
+  author  = {Voyant, Cyril and Julian, Daniel and Roustit, Rudy and Biffi, Katia
+             and Lantieri, C{\'e}line},
+  title   = {Biological effects and equivalent doses in radiotherapy:
+             A software solution},
+  journal = {Reports of Practical Oncology \& Radiotherapy},
+  volume  = {19},
+  number  = {1},
+  pages   = {47--55},
+  year    = {2014},
+  doi     = {10.1016/j.rpor.2013.08.004}
+}
+
+@article{voyant2017,
+  author  = {Voyant, Cyril and Julian, Daniel},
+  title   = {A short synthesis concerning biological effects and equivalent
+             doses in radiotherapy},
+  journal = {Journal of Radiology and Oncology},
+  volume  = {1},
+  pages   = {039--045},
+  year    = {2017},
+  doi     = {10.29328/journal.jro.1001005}
+}
+
+@article{voyant2025,
+  author  = {Voyant, C. and Julian, D. and Muraro, S. and Bodez, V. and
+             Pinpin, M. and Leschi, D. and Oozeer, R. and Wided, G. and
+             Acquaviva, M.-A. and Prapant, S. and Gahbiche, O. and
+             Bouaouina, N.},
+  title   = {Improving clinical decision-making in radiotherapy: A comparative
+             analysis of linear-quadratic {LQ} and linear-quadratic-linear
+             {LQL} dose models},
+  journal = {Clinical Oncology},
+  volume  = {45},
+  pages   = {103893},
+  year    = {2025},
+  doi     = {10.1016/j.clon.2025.103893}
+}
+
+@article{voyant2026standard,
+  author  = {Voyant, Cyril and Julian, Daniel},
+  title   = {Dose equivalence calculations in radiotherapy:
+             a call for standardization},
+  journal = {Medical Dosimetry},
+  year    = {2026},
+  note    = {in revision}
+}
+
+@software{lqlequiv2014soft,
+  author    = {Voyant, Cyril and Julian, Daniel},
+  title     = {{LQL-Equiv}: open-source software for biologically equivalent
+               dose calculation in radiotherapy},
+  version   = {1.2},
+  year      = {2025},
+  publisher = {Zenodo},
+  doi       = {10.5281/zenodo.16739883}
+}
+
+@software{lqlequivweb,
+  author    = {Voyant, Cyril and Julian, Daniel},
+  title     = {{LQL-Equiv-web}: a validated {Python} and web implementation of
+               biologically equivalent dose calculation in radiotherapy},
+  version   = {3.0.0},
+  year      = {2026},
+  publisher = {Zenodo},
+  doi       = {10.5281/zenodo.21948624}
+}
+
+% --- The models ------------------------------------------------------------
+
+@article{fowler1989,
+  author  = {Fowler, Jack F.},
+  title   = {The linear-quadratic formula and progress in fractionated
+             radiotherapy},
+  journal = {British Journal of Radiology},
+  volume  = {62},
+  number  = {740},
+  pages   = {679--694},
+  year    = {1989}
+}
+
+@article{fowler2010,
+  author  = {Fowler, Jack F.},
+  title   = {21 years of biologically effective dose},
+  journal = {British Journal of Radiology},
+  volume  = {83},
+  number  = {991},
+  pages   = {554--568},
+  year    = {2010}
+}
+
+@article{astrahan2008,
+  author  = {Astrahan, Melvin},
+  title   = {Some implications of linear-quadratic-linear radiation
+             dose-response with regard to hypofractionation},
+  journal = {Medical Physics},
+  volume  = {35},
+  number  = {9},
+  pages   = {4161--4172},
+  year    = {2008}
+}
+
+@article{dale1989,
+  author  = {Dale, Roger G.},
+  title   = {Radiobiological assessment of permanent implants using tumor
+             repopulation factors in the linear quadratic model},
+  journal = {British Journal of Radiology},
+  volume  = {62},
+  number  = {735},
+  pages   = {241--244},
+  year    = {1989}
+}
+
+@article{jones2001,
+  author  = {Jones, Bleddyn and Dale, Roger G. and Deehan, Colin and
+             Hopkins, Karen I. and Morgan, David A. L.},
+  title   = {The role of biologically effective dose {(BED)} in clinical
+             oncology},
+  journal = {Clinical Oncology},
+  volume  = {13},
+  number  = {2},
+  pages   = {71--81},
+  year    = {2001}
+}
+
+@article{dale2024,
+  author  = {Dale, Roger and Plataniotis, George and Jones, Bleddyn},
+  title   = {A generalised method for calculating repopulation-corrected
+             tumour {EQD2} values in a wide range of clinical situations,
+             including interrupted treatments},
+  journal = {Physica Medica},
+  volume  = {118},
+  pages   = {103294},
+  year    = {2024}
+}
+
+@article{jones2020,
+  author  = {Jones, Bleddyn and Dale, Roger},
+  title   = {Clinical and practical considerations in the design of
+             appropriate compensation schedules following treatment
+             interruptions},
+  journal = {BJR Open},
+  volume  = {2},
+  pages   = {20200041},
+  year    = {2020}
+}
+
+@article{guckenberger2013,
+  author  = {Guckenberger, Matthias and Klement, Rainer J. and
+             Allg{\"a}uer, Michael and Appold, Steffen and Dieckmann, Karin
+             and Ernst, Iris and others},
+  title   = {Applicability of the linear-quadratic formalism for modeling
+             local tumor control probability in high dose per fraction
+             stereotactic body radiotherapy for early stage non-small cell
+             lung cancer},
+  journal = {Radiotherapy and Oncology},
+  volume  = {109},
+  number  = {1},
+  pages   = {13--20},
+  year    = {2013}
+}
+
+@article{brown2014,
+  author  = {Brown, J. Martin and Carlson, David J. and Brenner, David J.},
+  title   = {The tumor radiobiology of {SRS} and {SBRT}: are more than the
+             5 {Rs} involved?},
+  journal = {International Journal of Radiation Oncology, Biology, Physics},
+  volume  = {88},
+  number  = {2},
+  pages   = {254--262},
+  year    = {2014}
+}
+
+@article{bentzen2012,
+  author  = {Bentzen, S{\o}ren M. and D{\"o}rr, Wolfgang and
+             Gahbauer, Reinhard and Howell, Roger W. and Joiner, Michael C.
+             and Jones, Bleddyn and Jones, Dan T. L. and
+             van der Kogel, Albert J. and Wambersie, Andr{\'e} and
+             Whitmore, Gordon},
+  title   = {Bioeffect modeling and equieffective dose concepts in radiation
+             oncology: terminology, quantities and units},
+  journal = {Radiotherapy and Oncology},
+  volume  = {105},
+  number  = {2},
+  pages   = {266--268},
+  year    = {2012}
+}
+
+% --- Parameters ------------------------------------------------------------
+
+@article{vanleeuwen2018,
+  author  = {van Leeuwen, Cornelis M. and Oei, Arlene L. and
+             Crezee, Johannes and Bel, Arjan and Franken, Nicolaas A. P. and
+             Stalpers, Lukas J. A. and Kok, H. Petra},
+  title   = {The alfa and beta of tumours: a review of parameters of the
+             linear-quadratic model, derived from clinical radiotherapy
+             studies},
+  journal = {Radiation Oncology},
+  volume  = {13},
+  pages   = {96},
+  year    = {2018},
+  doi     = {10.1186/s13014-018-1040-z}
+}
+
+@article{emami1991,
+  author  = {Emami, Bahman and Lyman, John and Brown, Andrew and others},
+  title   = {Tolerance of normal tissue to therapeutic irradiation},
+  journal = {International Journal of Radiation Oncology, Biology, Physics},
+  volume  = {21},
+  number  = {1},
+  pages   = {109--122},
+  year    = {1991}
+}
+
+@article{burman1991,
+  author  = {Burman, Chandra and Kutcher, Gerald J. and Emami, Bahman and
+             Goitein, Michael},
+  title   = {Fitting of normal tissue tolerance data to an analytic function},
+  journal = {International Journal of Radiation Oncology, Biology, Physics},
+  volume  = {21},
+  number  = {1},
+  pages   = {123--135},
+  year    = {1991}
+}
+
+@article{bentzen2010,
+  author  = {Bentzen, S{\o}ren M. and Constine, Louis S. and
+             Deasy, Joseph O. and Eisbruch, Avraham and Jackson, Andrew and
+             Marks, Lawrence B. and Ten Haken, Randall K. and Yorke, Ellen D.},
+  title   = {Quantitative analyses of normal tissue effects in the clinic
+             {(QUANTEC)}: an introduction to the scientific issues},
+  journal = {International Journal of Radiation Oncology, Biology, Physics},
+  volume  = {76},
+  number  = {3},
+  pages   = {S3--S9},
+  year    = {2010}
+}
+
+@article{brenner2003,
+  author  = {Brenner, David J. and Martinez, Alvaro A. and Edmundson, Gary K.
+             and Mitchell, Chris and Thames, Howard D. and Armour, Elwood P.},
+  title   = {Direct evidence that prostate tumors show high sensitivity to
+             fractionation (low {$\alpha/\beta$} ratio), similar to
+             late-responding normal tissue},
+  journal = {International Journal of Radiation Oncology, Biology, Physics},
+  volume  = {57},
+  number  = {2},
+  pages   = {391--401},
+  year    = {2003}
+}
+
+@article{joseph2025,
+  author  = {Joseph, Nuradh and Choudhury, Ananya and Dale, Roger},
+  title   = {Demystifying the radiobiology of hypofractionation: simple
+             equations to determine tumour alpha/beta ratio},
+  journal = {The Royal College of Radiologists Open},
+  volume  = {3},
+  pages   = {100159},
+  year    = {2025}
+}
+
+% --- Clinical practice, interruptions and reirradiation ---------------------
+
+@techreport{rcr2019,
+  author      = {{Royal College of Radiologists}},
+  title       = {The timely delivery of radical radiotherapy: guidelines for
+                 the management of unscheduled treatment interruptions},
+  institution = {The Royal College of Radiologists},
+  address     = {London, UK},
+  edition     = {Fourth},
+  year        = {2019}
+}
+
+@article{hardcastle2024,
+  author  = {Hardcastle, Nicholas and Vasquez Osorio, Eliana and
+             Jackson, Andrew and Mayo, Charles and Aarberg, Anja and
+             Ayadi, Myriam and others},
+  title   = {Multi-centre evaluation of variation in cumulative dose
+             assessment in reirradiation scenarios},
+  journal = {Radiotherapy and Oncology},
+  volume  = {194},
+  pages   = {110184},
+  year    = {2024}
+}
+
+@article{wahlstedt2026,
+  author  = {Wahlstedt, Isak and Appelt, Ane and Christiansen, Rasmus L.
+             and others},
+  title   = {Multicenter study of dose accumulation for reirradiation:
+             intercenter variation in radiobiological dose scaling introduces
+             clinically relevant differences},
+  journal = {Clinical Oncology},
+  volume  = {55},
+  pages   = {104190},
+  year    = {2026}
+}
+
+@article{appelt2026,
+  author  = {Appelt, Ane and Andrzejewski, Piotr and Hoffmann, Lone and
+             others},
+  title   = {Cumulative dose evaluation in clinical reirradiation: consensus
+             guidance on technical considerations by the {ESTRO}
+             reirradiation focus group},
+  journal = {Radiotherapy and Oncology},
+  volume  = {214},
+  pages   = {111313},
+  year    = {2026}
+}
+
+@article{stroom2025,
+  author  = {Stroom, Joep and Ayadi, Myriam and Aarberg, Astrid and others},
+  title   = {Reirradiation dose constraints in clinical practice: results of
+             an international survey},
+  journal = {Radiotherapy and Oncology},
+  volume  = {210},
+  pages   = {111030},
+  year    = {2025}
+}
+
+@article{oshea2022,
+  author  = {O'Shea, Kathleen A. and Coleman, Linda and Fahy, Liam and
+             Kleefeld, Christoph and Foley, Mark and Moore, Michael},
+  title   = {Compensation for radiotherapy treatment interruptions due to a
+             cyberattack: an isoeffective {DVH}-based dose compensation
+             decision tool},
+  journal = {Journal of Applied Clinical Medical Physics},
+  volume  = {23},
+  pages   = {e13716},
+  year    = {2022}
+}
+
+% --- Other implementations --------------------------------------------------
+
+@article{jaikuna2017,
+  author  = {Jaikuna, Tanwiwat and Khadsiri, Phatchareewan and
+             Chawapun, Nisa and Saekho, Suwit and Tharavichitkul, Ekkasit},
+  title   = {Isobio software: biological dose distribution and biological
+             dose volume histogram from physical dose conversion using
+             linear-quadratic-linear model},
+  journal = {Journal of Contemporary Brachytherapy},
+  volume  = {9},
+  number  = {1},
+  pages   = {44--51},
+  year    = {2017}
+}
+
+@article{tzikas2024,
+  author  = {Tzikas, C. and Mavroidis, P.},
+  title   = {Dose-response modeling and treatment plan assessment with a
+             {Python} software toolkit},
+  journal = {Medical Dosimetry},
+  volume  = {49},
+  number  = {2},
+  pages   = {340--349},
+  year    = {2024}
+}
+
+@article{yusoff2016,
+  author  = {Yusoff, A. L. and Mohamad, M. and Abdullah, R. and
+             Bhavaraju, V. M. K. and Nik Idris, N. R.},
+  title   = {{RTTxGap}: an android radiobiological tool for compensation of
+             radiotherapy treatment interruption},
+  journal = {Journal of Physics: Conference Series},
+  volume  = {694},
+  number  = {1},
+  pages   = {012012},
+  year    = {2016}
+}
+
+@article{calvo2026,
+  author  = {Calvo-Ortega, Juan-Francisco and Laosa-Bello, Cristina and
+             Moragues-Femen{\'i}a, Sandra},
+  title   = {Validation of a freely available {Eclipse} script for automatic
+             calculation of {EQD2} dose distribution in external beam
+             radiotherapy},
+  journal = {Medical Dosimetry},
+  year    = {2026},
+  note    = {in press}
+}
+
+@article{singh2018,
+  author  = {Singh, Gaganpreet and Oinam, Arun S. and Kamal, Rose and
+             Handa, Bhumika and Kumar, Vivek and Rai, Bhavana},
+  title   = {Voxel based {BED} and {EQD2} evaluation of the radiotherapy
+             treatment plan},
+  journal = {Journal of Medical Physics},
+  volume  = {43},
+  number  = {3},
+  pages   = {149--156},
+  year    = {2018}
+}
+
+% --- Tooling ---------------------------------------------------------------
+
+@misc{pyodide,
+  author = {{Pyodide contributors}},
+  title  = {Pyodide: {Python} distribution for the browser and {Node.js}
+            based on {WebAssembly}},
+  year   = {2026},
+  note   = {\url{https://pyodide.org}}
+}
+
+@misc{stlite,
+  author = {Whitphx},
+  title  = {stlite: serverless {Streamlit} running on {WebAssembly}},
+  year   = {2026},
+  note   = {\url{https://github.com/whitphx/stlite}}
+}
+
+% --- Foundations of the three corrections the software implements -----------
+
+@article{thames1985,
+  author  = {Thames, Howard D.},
+  title   = {An `incomplete-repair' model for survival after fractionated and
+             continuous irradiations},
+  journal = {International Journal of Radiation Biology},
+  volume  = {47},
+  number  = {3},
+  pages   = {319--339},
+  year    = {1985},
+  doi     = {10.1080/09553008514550461}
+}
+
+@article{withers1988,
+  author  = {Withers, H. Rodney and Taylor, James M. G. and
+             Maciejewski, Bogus{\l}aw},
+  title   = {The hazard of accelerated tumor clonogen repopulation during
+             radiotherapy},
+  journal = {Acta Oncologica},
+  volume  = {27},
+  number  = {2},
+  pages   = {131--146},
+  year    = {1988},
+  doi     = {10.3109/02841868809090333}
+}
+
+@article{lyman1985,
+  author  = {Lyman, John T.},
+  title   = {Complication probability as assessed from dose-volume histograms},
+  journal = {Radiation Research},
+  number  = {Supplement 8},
+  pages   = {S13--S19},
+  year    = {1985}
+}
+
+@article{niemierko1997,
+  author  = {Niemierko, Andrzej},
+  title   = {Reporting and analyzing dose distributions: a concept of
+             equivalent uniform dose},
+  journal = {Medical Physics},
+  volume  = {24},
+  number  = {1},
+  pages   = {103--110},
+  year    = {1997}
+}
+
+@article{vandyk1989,
+  author  = {Van Dyk, Jacob},
+  title   = {Radiation induced lung damage: dose time fractionation
+             consideration},
+  journal = {Radiotherapy and Oncology},
+  volume  = {14},
+  number  = {1},
+  pages   = {55--69},
+  year    = {1989}
+}
+
+@misc{tdfplan,
+  author = {{Eye Physics, LLC}},
+  title  = {{TDF Plan}: radiobiological dose calculator},
+  note   = {\url{http://www.eyephysics.com/tdf/Index.htm}}
+}

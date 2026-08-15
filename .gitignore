@@ -14,3 +14,10 @@ htmlcov/
 web/index.html
 web/robots.txt
 web/sitemap.xml
+paper/figures/*.pdf
+paper/*.aux
+paper/*.bbl
+paper/*.blg
+paper/*.log
+paper/*.out
+paper/*.pdf

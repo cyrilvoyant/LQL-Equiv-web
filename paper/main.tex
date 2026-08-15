@@ -1,0 +1,595 @@
+%% ---------------------------------------------------------------------------
+%% LQL-Equiv -- SoftwareX manuscript
+%% Compile with:  pdflatex main ; bibtex main ; pdflatex main ; pdflatex main
+%% ---------------------------------------------------------------------------
+\documentclass[preprint,12pt,number]{elsarticle}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{longtable}
+\usepackage{url}
+\usepackage{orcidlink}
+\usepackage[hidelinks]{hyperref}
+
+\journal{SoftwareX}
+
+\begin{document}
+
+\begin{frontmatter}
+
+\title{LQL-Equiv: a validated, browser-based implementation of
+       linear-quadratic-linear dose equivalence for radiotherapy}
+
+\author[label1]{Cyril Voyant\corref{cor1}\orcidlink{0000-0003-0242-7377}}
+\ead{cyril.voyant@minesparis.psl.eu}
+\author[label2]{Daniel Julian}
+\ead{Julian@ccgm.fr}
+
+\affiliation[label1]{organization={Mines Paris, PSL University},
+            addressline={Centre for observation, impacts, energy (O.I.E.)},
+            city={Sophia-Antipolis},
+            postcode={06904},
+            state={Antibes},
+            country={France}}
+\cortext[cor1]{Corresponding author}
+\affiliation[label2]{organization={Centre de Canc\'erologie du Grand Montpellier},
+            addressline={Radiotherapy Unit},
+            city={Montpellier},
+            postcode={34000},
+            state={H\'erault},
+            country={France}}
+
+\begin{abstract}
+Dose equivalence calculations decide how radiotherapy schedules are compared,
+compensated after an interruption, and summed in reirradiation. They are also
+applied inconsistently: across identical clinical cases, inter-practitioner
+agreement reaches only 25.8\,\% and nearly half of surveyed centres report no
+usable tool. \texttt{LQL-Equiv} computes biologically effective dose,
+equivalent dose in a reference fractionation, normal-tissue complication
+probability, tumour control probability and radiation-induced cancer risk under
+the linear-quadratic-linear model, with corrections for incomplete
+inter-fraction repair, accelerated proliferation and treatment protraction,
+over any number of successive courses separated by gaps. Version~3.0 is a
+dependency-free Python library and a browser application that runs entirely on
+the user's machine through WebAssembly: no installation, no licence, no data
+transmitted. It was validated case by case against the 2014 MATLAB reference
+implementation over 4438 treatment schedules, agreeing on 69\,125 of 69\,131
+compared values, and its solver was separately proved equivalent to the
+original exhaustive search over 10\,554 searches.
+\end{abstract}
+
+\begin{keyword}
+Radiotherapy \sep Biologically effective dose \sep EQD2 \sep
+Linear-quadratic-linear model \sep NTCP \sep TCP \sep Medical physics \sep
+WebAssembly
+\end{keyword}
+
+\end{frontmatter}
+
+%% ---------------------------------------------------------------------------
+\section*{Code metadata}
+
+\begin{table}[h!]
+\centering
+\small
+\begin{tabular}{@{}llp{7.6cm}@{}}
+\toprule
+\textbf{Nr} & \textbf{Code metadata description} & \textbf{Metadata} \\
+\midrule
+C1 & Current code version & v3.0.0 \\
+C2 & Permanent link to code/repository &
+     \url{https://github.com/cyrilvoyant/LQL-Equiv-web} \\
+C3 & Permanent link to reproducible capsule &
+     \url{https://doi.org/10.5281/zenodo.21948624} \\
+C4 & Legal code license & MIT License \\
+C5 & Code versioning system used & git \\
+C6 & Software code languages, tools and services used &
+     Python 3.10+, Streamlit, Altair, Pandas; stlite/Pyodide (WebAssembly);
+     GitHub Actions; GitHub Pages \\
+C7 & Compilation requirements, operating environments and dependencies &
+     Any modern web browser for the hosted application. As a library:
+     Python $\geq$ 3.10, standard library only. Linux, macOS, Windows \\
+C8 & Link to developer documentation/manual &
+     \url{https://github.com/cyrilvoyant/LQL-Equiv-web/blob/main/README.md} \\
+C9 & Support email for questions & cyril.voyant@minesparis.psl.eu \\
+\bottomrule
+\end{tabular}
+\caption{Code metadata.}
+\label{tab:metadata}
+\end{table}
+
+%% ---------------------------------------------------------------------------
+\section{Motivation and significance}
+
+Radiotherapy schedules that differ in fraction size, fraction number or overall
+time cannot be compared by adding up physical dose: 20~$\times$~3\,Gy and
+30~$\times$~2\,Gy are both 60\,Gy and are not the same treatment. The comparison
+is made through the biologically effective dose and the equivalent dose in a
+reference fractionation, usually 2\,Gy per fraction (EQD2)
+\cite{fowler1989,fowler2010,jones2001,bentzen2012,voyant2017}. These quantities govern three decisions
+taken in every department: how to compensate an unscheduled interruption
+\cite{rcr2019,jones2020,oshea2022}, whether a hypofractionated schedule is acceptable, and
+how to accumulate dose in reirradiation \cite{appelt2026,hardcastle2024}.
+
+The calculation is not applied consistently. In a structured workshop where
+radiation oncologists, medical physicists and technologists applied the same
+models to the same standardised cases, mean inter-practitioner agreement reached
+25.8\,\% (Jaccard index), falling to 10\,\% for head-and-neck cases; proposed
+dose-per-fraction adjustments for identical situations ranged from 1.8 to
+2.5\,Gy, and nearly half of the surveyed centres reported that they could not
+compute biologically equivalent schedules with the tools available to them
+\cite{voyant2026standard,voyant2025}. Multi-centre studies of reirradiation
+reach the same conclusion from a different direction: intercentre variation in
+radiobiological dose scaling introduces clinically relevant differences in
+cumulative dose \cite{wahlstedt2026,hardcastle2024,stroom2025}. Where the
+spinal cord is involved, that variation is not academic.
+
+Three modelling elements are needed and are routinely omitted. First, the
+linear-quadratic model overestimates cell kill at the fraction sizes used in
+stereotactic treatments; the linear-quadratic-linear (LQL) form of Astrahan
+replaces the quadratic term by a straight line above a transition dose and
+restores usable behaviour there \cite{astrahan2008,guckenberger2013,brown2014}.
+Second, overall treatment time matters: accelerated proliferation after a
+kick-off time consumes dose every day, so an interruption is not neutral
+\cite{withers1988,dale1989,dale2024}. Third, two fractions a day require the
+incomplete-repair correction \cite{thames1985}. A tool that omits any of the
+three cannot answer the questions above.
+
+Software implementing these models exists
+\cite{jaikuna2017,tzikas2024,singh2018,yusoff2016,calvo2026}, and we published
+one ourselves in 2014 \cite{voyant2014,lqlequiv2014soft}. That release was a
+MATLAB GUIDE application distributed as a Windows executable requiring the
+MATLAB Component Runtime. The barrier was practical rather than scientific: a
+several-hundred-megabyte runtime, a single operating system, an interface in
+French, and 3567 lines of source in which the entire calculation sat inside one
+callback. It could not be inspected, cited by version, or run by a colleague in
+a browser during a meeting.
+
+\texttt{LQL-Equiv}~3.0 removes that barrier without discarding the validated
+model. It is a reimplementation of the same calculation as a dependency-free
+Python library and a browser application, validated case by case against the
+original, with the provenance of every radiobiological parameter recorded.
+
+%% ---------------------------------------------------------------------------
+\section{Software description}
+
+\subsection{Architecture}
+
+The package follows a \texttt{src} layout and separates three concerns. The
+core, \texttt{src/lqlequiv/}, contains the model (\texttt{model.py}), the
+calendar conversion (\texttt{schedule.py}) and the radiobiological library
+(\texttt{tissues.py}, backed by \texttt{data/tissues.json}); it depends only on
+the Python standard library, which keeps it auditable and makes it light enough
+to ship to a browser. The interface, \texttt{app/streamlit\_app.py}, is a
+Streamlit application. The delivery layer, \texttt{tools/build\_stlite.py},
+embeds the sources into a single self-contained HTML page of about 112\,kB that
+loads stlite \cite{stlite}, which runs Streamlit on Pyodide \cite{pyodide}.
+GitHub Actions rebuilds and publishes that page on every push; the whole cycle
+takes about 25\,s.
+
+The consequence is architectural rather than cosmetic. No computation happens
+on a server: each visitor's browser downloads static files and executes the
+model locally. Nothing entered into the application is transmitted anywhere,
+which matters when a physicist types a real patient schedule, and concurrent use
+is limited only by the number of visitors' own machines.
+
+\subsection{Formulation}
+
+Notation is fixed once and used throughout. A course delivers $n$ fractions of
+dose $d$ (Gy) and spans an overall time $T$ (days). The tissue is described by
+its sensitivity ratio $\alpha/\beta$ (Gy), its linear coefficient $\alpha$
+(Gy$^{-1}$), the transition dose $d_t = 2\,\alpha/\beta$ (Gy) above which the
+response becomes linear, the slope of that linear tail $\gamma/\alpha$
+(dimensionless, taken as 5), the repair half-time $T_{1/2}$ (h), the kick-off
+time of accelerated proliferation $T_k$ (days) and the effective doubling time
+$T_p$ (days).
+
+The dose consumed per day by proliferation is
+\begin{equation}
+D_\mathrm{prol} \;=\; \frac{\ln 2}{\alpha\,T_p}
+\qquad (\mathrm{Gy\,d^{-1}}),
+\label{eq:dprol}
+\end{equation}
+and the incomplete-repair correction for two fractions separated by
+$\Delta t = 6$\,h is
+\begin{equation}
+H_m \;=\; \frac{\varphi}{1-\varphi}
+          \left[\,2 - \frac{1-\varphi^{2}}{1-\varphi}\right],
+\qquad
+\varphi = \exp\!\left(-\frac{\ln 2\,\Delta t}{T_{1/2}}\right),
+\label{eq:hm}
+\end{equation}
+with $H_m = 0$ for one fraction a day.
+
+The biologically effective dose is linear-quadratic below the transition dose
+and linear above it, both reduced by proliferation once $T$ exceeds $T_k$:
+\begin{equation}
+\mathrm{BED}(d,n,T) =
+\begin{cases}
+\; n\,d\left[1 + \dfrac{(1+H_m)\,d}{\alpha/\beta}\right]
+  - D_\mathrm{prol}\,(T-T_k)_{+}, & d < d_t,\\[2.2ex]
+\; n\left[d_t\left(1 + \dfrac{d_t}{\alpha/\beta}\right)
+  + \dfrac{\gamma}{\alpha}\,(d-d_t)\right]
+  - D_\mathrm{prol}\,(T-T_k)_{+}, & d \geq d_t,
+\end{cases}
+\label{eq:bed}
+\end{equation}
+where $(x)_{+} = \max(x,0)$.
+
+Equation~\eqref{eq:bed} is the whole model; everything else follows from one
+equality. Let $d_r$ be the reference dose per fraction, conventionally 2\,Gy.
+The equivalent dose is obtained by asking how many reference fractions produce
+the same biological effect, that is by solving for $n_r$
+\begin{equation}
+\boxed{\;\mathrm{BED}\big(d_r,\,n_r,\,T(n_r)\big)
+       \;=\;
+       \mathrm{BED}\big(d,\,n,\,T(n)\big)\;}
+\label{eq:core}
+\end{equation}
+and then reading
+\begin{equation}
+\mathrm{EQD}_{d_r} \;=\; n_r\,d_r .
+\label{eq:eqd}
+\end{equation}
+
+Two points about \eqref{eq:core} are easy to miss and account for most of the
+disagreement between implementations. First, the reference schedule on the left
+carries its own overall time $T(n_r)$ and therefore its own proliferation loss;
+definitions that correct only the right-hand side answer a different question
+and return a different number. Second, $T$ is not $n$: treatment runs five days
+a week, so
+\begin{equation}
+T(n, g) \;=\; \Theta\!\left(n + g\right),
+\qquad
+\Theta(x) = x + 2\left(\left\lfloor \frac{x-6}{5} \right\rfloor + 1\right)
+\;\; \text{for } x \geq 6,
+\label{eq:time}
+\end{equation}
+$\Theta(x)=x$ below six fractions, where $g$ is the number of missed treatment
+sessions preceding the course. Because $g$ is counted in sessions and not in
+calendar days, weekends falling inside an interruption are supplied by $\Theta$
+itself: seven missed sessions extend a 35-fraction course by eleven calendar
+days.
+
+For several successive courses indexed by $j$, equation~\eqref{eq:core} is
+solved course by course, each carrying forward the elapsed time of those before
+it, and the equivalent doses add:
+$\mathrm{EQD} = \sum_j n_{r,j}\,d_r$.
+
+The two toxicity endpoints follow from the cumulative equivalent dose. The
+normal-tissue complication probability uses the Lyman probit, with $D_{50}$ the
+dose giving a 50\,\% complication rate (Gy) and $m$ the slope:
+\begin{equation}
+\mathrm{NTCP} = \frac{1}{2}\left[1 + \operatorname{erf}
+  \left(\frac{u}{\sqrt{2}}\right)\right],
+\qquad u = \frac{\mathrm{EQD} - D_{50}}{m\,D_{50}} .
+\label{eq:ntcp}
+\end{equation}
+The tumour control probability uses a logistic sigmoid through the dose giving
+50\,\% control, $\mathrm{TCD}_{50}$ (Gy), with normalised slope $\gamma_{50}$:
+\begin{equation}
+\mathrm{TCP} = \left[1 +
+  \left(\frac{\mathrm{TCD}_{50}}{\mathrm{EQD}}\right)^{4\gamma_{50}}
+  \right]^{-1}.
+\label{eq:tcp}
+\end{equation}
+Finally, the radiation-induced cancer risk follows a linear-exponential form
+with coefficients $P$ and $\alpha_2$ (Gy$^{-1}$):
+\begin{equation}
+K = P\,\mathrm{EQD}\,e^{-\alpha_2 \mathrm{EQD}} .
+\label{eq:risk}
+\end{equation}
+
+\subsection{Functionalities}
+
+For a chosen organ at risk, a chosen target volume and a sequence of successive
+courses each with its own fraction size, fraction number and preceding gap, the
+software computes:
+
+\begin{itemize}
+  \item the biologically effective dose, linear-quadratic below the transition
+        dose $d_t = 2\,\alpha/\beta$ and linear above it \cite{astrahan2008};
+  \item the loss to accelerated proliferation, switched on at the kick-off time
+        $T_k$ and accumulated across courses and gaps \cite{dale1989,withers1988};
+  \item the incomplete-repair correction for two fractions a day, six hours
+        apart \cite{thames1985};
+  \item the equivalent dose in any reference fractionation, for the organ at
+        risk and for the target;
+  \item the normal-tissue complication probability, Lyman probit
+        \cite{lyman1985,burman1991};
+  \item the tumour control probability, logistic or Poisson sigmoid in
+        $\gamma_{50}$;
+  \item the radiation-induced cancer risk under a linear-exponential model.
+\end{itemize}
+
+The shipped library holds 34 organs at risk and 20 target sites. Nineteen of the
+latter are transcribed from the 2014 release; the twentieth was added in 3.0, a
+standard tumour with proliferation switched off, which isolates the effect of
+fractionation from the effect of overall time. The interface offers sliders or
+typed entry, an isoeffect sweep over fraction number or fraction size, a
+therapeutic window in both directions, scenario comparison with CSV and JSON
+export, and an $\alpha/\beta$ sensitivity band.
+
+That last feature deserves a note. Published $\alpha/\beta$ values for a given
+tumour site vary widely with histology, stage, model form and endpoint, and the
+systematic review that collects them explicitly recommends exploring a range
+rather than trusting a point value \cite{vanleeuwen2018}. The software therefore
+reports equivalent dose across a user-chosen spread of $\alpha/\beta$ rather
+than at a single tabulated value. Because $\alpha/\beta$ also sets the
+transition dose, the response is not monotonic in it and the envelope is sampled
+at nine points rather than at its two ends.
+
+\subsection{Clinical validation of the underlying calculation}
+
+The calculation itself was validated clinically when it was first published
+\cite{voyant2014}. A questionnaire was sent to medical physicists in seven
+French radiotherapy centres, covering eight clinical calculators in routine use:
+CHD Castelluccio (Ajaccio, two calculators), Centre de Canc\'erologie du Grand
+Montpellier, CRLCC Paul Lamarque (Montpellier), Clinique Saint-Pierre
+(Perpignan), Centre de la R\'epublique (Clermont-Ferrand), CHU de Grenoble and
+CHU de N\^imes. Each was asked to convert the same standard schedules.
+
+The centres did not agree. Relative standard deviations across calculators
+reached 17.7\,\% for the spinal cord and 29.6\,\% for a prostate metastasis on a
+single 8\,Gy fraction, and remained above 5\,\% on conventional
+10~$\times$~3\,Gy schedules. Schedules containing a gap between two cycles could
+not be computed at all by most of the centres surveyed. The outputs of the
+software were then compared against standard linear-quadratic calculators and
+against TDF~Plan \cite{tdfplan}, with the differences reported schedule by
+schedule.
+
+That survey is twelve years old and its finding has not aged: the workshop
+described above measured 25.8\,\% agreement on the same class of question
+\cite{voyant2026standard}, and multi-centre reirradiation studies report the
+same dispersion in cumulative dose \cite{wahlstedt2026,hardcastle2024}. The
+present work does not revisit that clinical validation; it preserves it, by
+guaranteeing that version~3.0 computes what the validated implementation
+computed.
+
+\subsection{Numerical validation of the reimplementation}
+
+The 2014 application still runs under MATLAB R2025b and can be driven without a
+display. \texttt{tools/matlab/sweep.m} opens the figure invisibly, sets the
+input fields, invokes the callbacks in the order the interface would, and reads
+the output fields back, over 4438 treatment schedules: every organ/target pair
+on a reference schedule, a wide fractionation grid from 1.2 to 20\,Gy per
+fraction and 1 to 100 fractions with gaps and two-fractions-a-day schedules, and
+600 randomised multi-course plans. The captured outputs form
+\texttt{tests/data/golden.jsonl}, which the test-suite replays.
+
+MATLAB writes its interface fields with six significant digits, which sets the
+resolution at which the two implementations can be compared at all. At that
+resolution, 69\,125 of 69\,131 compared values agree (99.991\,\%). The six
+remaining values belong to two cases out of 4438 in which the exact root falls
+precisely halfway between two points of the original search grid, so that the
+2014 answer is decided by floating-point noise at the fifteenth decimal; the
+consequence is a 0.02\,Gy shift, below any resolution the model itself
+possesses.
+
+Restricting the comparison to the equivalent doses gives $n = 34\,418$ paired
+values, of which 92.0\,\% are bit-identical (Fig.~\ref{fig:agreement}). The
+question is one of equivalence rather than of difference, and is treated as
+such: with a margin of $\pm$0.05\,Gy, chosen two orders of magnitude below any
+decision threshold in this field, the bootstrap interval on the mean signed
+difference is $[{+}1.6\times10^{-6},\,{+}9.4\times10^{-6}]$\,Gy and lies wholly
+inside it; the largest single deviation is 0.04\,Gy and Spearman's rank
+correlation is $\rho_s = 1.000$ ($p < 10^{-4}$). A Wilcoxon signed-rank test on
+the 2750 non-zero pairs returns $p < 10^{-4}$, which must not be read as
+disagreement: with that sample size it detects the six-significant-digit
+rounding of the captured reference, an effect of order $10^{-5}$\,Gy. It is
+reported here only so that it is not mistaken for evidence.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig1_agreement.pdf}
+\caption{Equivalence between version 3.0 and the 2014 reference implementation
+over 4438 treatment schedules ($n = 34\,418$ paired equivalent doses).
+(a)~Values against values, with the identity line. (b)~Difference against the
+mean of the pair; the bias is $+5.0\times10^{-6}$\,Gy.}
+\label{fig:agreement}
+\end{figure}
+
+A second check does not depend on the MATLAB outputs. The original locates the
+equivalent fraction count by evaluating an objective at 20\,001 grid points and
+taking the minimum; version 3.0 solves the objective in closed form and scores
+only the grid points around each root. That shortcut is legitimate only if it
+lands on the same point every time, which is not obvious because proliferation
+switching on at $T_k$ makes the tumour objective piecewise linear, so it can
+approach the target twice and its best grid point can lie next to the kink
+rather than next to a root. \texttt{tools/verify\_grid\_equivalence.py} replays
+the full grid for every case: 10\,554 searches, no disagreement.
+
+The reimplementation also surfaced four defects in the 2014 release, all now
+documented and reproduced by default so that historical results remain
+obtainable. Equivalent doses beyond 100 reference fractions were reported at the
+search bound, silently, and stopped responding to added dose. Nine parameters
+were displayed differently from the values used in the computation, across seven
+tissues. The calendar model contradicts itself past 86 fractions, where two
+copies of the same weekend staircase diverge by up to a day. Complication
+probability was reported as 100\,\% for the five tissues that carry no Lyman
+parameters, through a division by zero; it is now reported as unavailable.
+
+\subsection{Limitations}
+
+The software is a model comparison tool and not a treatment planning system: it
+knows nothing of dose distribution, volume effects or plan constraints, and
+voxel-level accumulation \cite{singh2018,calvo2026} is outside its scope. The
+radiobiological library is the one published in 2014; its Lyman parameters fall
+in the range of the Emami/Burman fits \cite{emami1991,burman1991}, which is
+their probable but unverified origin, and the provenance of every value is
+recorded in \texttt{docs/PARAMETERS.md}. Model parameters carry uncertainty
+larger than many of the differences the software can display, which is why the
+$\alpha/\beta$ band exists and why the therapeutic window declines to name a
+best schedule when the uncertainty bars overlap. It is intended for research and
+education, is not a medical device, and must not be used to plan, verify or
+modify the treatment of a patient.
+
+%% ---------------------------------------------------------------------------
+\section{Illustrative examples}
+
+The library is used in a few lines. The example below reproduces a prostate
+schedule of 39~$\times$~2\,Gy with the rectum as organ at risk:
+
+\begin{verbatim}
+from lqlequiv import Course, Prescription, compute, load_library
+
+library = load_library()
+plan = Prescription(courses=(Course(dose_per_fraction=2.0, n_fractions=39),),
+                    reference_dose=2.0)
+result = compute(library.organ("Rectum"),
+                 library.tumour_site("Prostate"), plan)
+
+result.eqd_oar_total     # 78.00 Gy EQD2 to the rectum
+result.ntcp_percent      # complication probability, proctitis
+result.tcp_percent       # tumour control probability
+\end{verbatim}
+
+\paragraph{Cost of an interruption.} A course of 25~$\times$~2\,Gy delivered to
+the standard tumour reaches 50.00\,Gy EQD2. Inserting a ten-day interruption
+brings it to 37.48\,Gy: the gap costs 12.5\,Gy EQD2, more than six 2\,Gy
+fractions. Against the added non-proliferating tumour the same gap costs
+nothing, which separates the time effect from the fractionation effect. This is
+the quantity that compensation guidance asks a department to estimate
+\cite{rcr2019,jones2020,dale2024}, and the one the workshop found practitioners
+estimating inconsistently \cite{voyant2026standard}.
+
+\paragraph{Direction of the time effect.} Proliferation penalises both sides of
+an equivalence, and the longer side loses more, so its effect changes sign with
+the schedule. For 20~$\times$~3\,Gy the standard tumour reaches 80.66\,Gy EQD2
+against 65.00\,Gy with proliferation switched off: the shorter schedule
+outruns repopulation and gains. For a schedule prolonged by a gap the ordering
+reverses, as above. Software that reports only a single number hides this.
+
+\paragraph{Parameter uncertainty grows with fraction size.} The tabulated
+$\alpha/\beta$ is not known to better than the spread reported across clinical
+studies \cite{vanleeuwen2018}. Propagating that spread by Monte Carlo, with
+$\alpha/\beta$ drawn log-normally so that 95\,\% of the mass lies within
+$\pm$30\,\% of the tabulated value and 5000 draws per schedule, gives the
+distributions of Fig.~\ref{fig:uncertainty} for a rectum/prostate pair:
+
+\begin{center}
+\small
+\begin{tabular}{@{}lrr@{}}
+\toprule
+Schedule & Organ EQD2 [95\,\% CI] (Gy) & Width (Gy) \\
+\midrule
+39 $\times$ 2\,Gy      & 78.00 [78.00,\;78.00] & 0.00 \\
+20 $\times$ 3\,Gy      & 82.69 [80.76,\;84.75] & 3.99 \\
+5 $\times$ 7.25\,Gy    & 92.33 [84.83,\;96.79] & 11.96 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+At the reference fraction size the interval collapses: equation~\eqref{eq:core}
+is then satisfied at $n_r = n$ whatever $\alpha/\beta$, so the parameter cannot
+matter. It matters increasingly as the schedule departs from it, reaching almost
+12\,Gy for an ultra-hypofractionated course, with
+$\rho_s(\alpha/\beta,\mathrm{EQD}) = -1.000$ ($p < 10^{-4}$). Ultra-hypofractionation
+is precisely where the parameter is least certain \cite{vanleeuwen2018,brenner2003}
+and where the model is applied with most confidence. For the prostate in
+particular, the tabulated ratio is 3.1\,Gy while published estimates cluster
+nearer 1--2\,Gy, a discrepancy wider than the band itself.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig2_uncertainty.pdf}
+\caption{Organ-at-risk equivalent dose under a log-normal $\pm$30\,\%
+uncertainty on $\alpha/\beta$ (5000 draws). Red line, tabulated value; shaded
+band, 95\,\% interval. The interval is degenerate at the reference fraction
+size and widens with it.}
+\label{fig:uncertainty}
+\end{figure}
+
+\paragraph{Where the linear tail changes the answer.} Holding total physical
+dose at 60\,Gy and varying fraction size, the pure linear-quadratic form and the
+linear-quadratic-linear form agree exactly up to the transition dose
+($d_t = 4$\,Gy for the spinal cord) and separate above it: the linear-quadratic
+form returns 9.1\,\% more equivalent dose at 6\,Gy per fraction, 42.9\,\% more at
+10\,Gy and 90.3\,\% more at 15\,Gy (Fig.~\ref{fig:lql}). In the stereotactic
+range the choice of formalism is no longer a detail
+\cite{astrahan2008,guckenberger2013,brown2014}.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.52\textwidth]{figures/fig3_lql.pdf}
+\caption{Equivalent dose to the spinal cord at constant total physical dose,
+under the linear-quadratic and linear-quadratic-linear forms. Dotted line, the
+transition dose $d_t = 2\,\alpha/\beta$.}
+\label{fig:lql}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.9\textwidth]{figures/fig4_interface.png}
+\caption{The application running in a browser. Left, tissue selection and model
+options; centre, the courses and the computed equivalent doses, complication and
+control probabilities; below, the isoeffect curves with the $\alpha/\beta$
+uncertainty band.}
+\label{fig:interface}
+\end{figure}
+
+%% ---------------------------------------------------------------------------
+\section{Impact}
+
+The first impact is access. The calculation is now reachable from a single URL,
+on any modern browser, with no installation, no licence and no operating-system
+constraint. In a field where nearly half of surveyed centres report no usable
+tool \cite{voyant2026standard}, removing the installation barrier is not a
+convenience: it is the difference between a model being applied and being
+skipped.
+
+The second is traceability. Every parameter's provenance is recorded, the
+defects of the previous release are documented rather than silently corrected,
+and the historical behaviour remains reachable through a switch so that results
+computed in 2014 can still be reproduced. The validation dataset ships with the
+code, so a reader can rerun it. This is what allows a departmental protocol to
+name the exact version used, by DOI \cite{lqlequivweb}.
+
+The third is reproducibility across centres. The multi-centre studies cited
+above attribute part of the variation in cumulative dose to differences in how
+the same model is applied \cite{wahlstedt2026,hardcastle2024,appelt2026}. A
+version-pinned, openly inspectable implementation that every participant can run
+in a browser removes one term from that variance. It does not remove the
+disagreement over parameters, which is a scientific question
+\cite{vanleeuwen2018}, but it separates it from the disagreement over
+arithmetic, which is not.
+
+The fourth is teaching. The isoeffect curves, the therapeutic window in both
+directions and the non-proliferating reference tumour make visible effects that
+are otherwise asserted: that a gap costs dose, that hypofractionation can gain
+or lose depending on the geometry, and that the differences under discussion are
+frequently smaller than the uncertainty of the parameters that produce them.
+
+%% ---------------------------------------------------------------------------
+\section{Conclusions}
+
+\texttt{LQL-Equiv}~3.0 makes a validated linear-quadratic-linear dose
+equivalence calculation available without installation, with its assumptions
+stated, its parameters sourced and its agreement with the published reference
+implementation quantified over 4438 schedules. The models it implements are not
+new; what it changes is that they can now be run identically, and inspected, by
+everyone who needs them. Work in progress covers an updated parameter set drawn
+from the post-2014 literature, carrying a citation per value, and reporting of
+tolerance doses alongside the computed equivalent dose.
+
+%% ---------------------------------------------------------------------------
+\section*{Declaration of competing interest}
+
+The authors declare that they have no known competing financial interests or
+personal relationships that could have appeared to influence the work reported
+in this paper.
+
+\section*{Data availability}
+
+The source code, the documentation and the complete validation dataset are
+openly available at \url{https://github.com/cyrilvoyant/LQL-Equiv-web} and
+archived at \url{https://doi.org/10.5281/zenodo.21948624}. The application runs
+at \url{https://cyrilvoyant.github.io/LQL-Equiv-web/}.
+
+\bibliographystyle{elsarticle-num}
+\bibliography{refs}
+
+\end{document}
