@@ -257,11 +257,22 @@ def _schedule_label(prescription: Prescription) -> str:
     return label
 
 
+def _swap_last_course(courses, dose: float, count: float):
+    """The same sequence of courses with its last one rewritten."""
+    varied = list(courses)
+    varied[-1] = Course(dose, count, courses[-1].gap_days)
+    return tuple(varied)
+
+
 def _fractions_matching_tumour_dose(
     target: float, dose: float, oar, tum, prescription, options, library,
     tolerance: float = 0.05,
 ) -> float | None:
-    """Fractions of ``dose`` giving the same tumour equivalent dose as ``target``.
+    """Fractions of ``dose`` in the last course reaching a total tumour dose of ``target``.
+
+    Only the last course is rewritten; the earlier ones stand as entered, being
+    already delivered. The target is the cumulative dose over the whole
+    prescription, which is the quantity worth holding constant.
 
     Bisected on the fraction count, which the tumour equivalent dose increases
     with. A coarse scan is not good enough here: stepping the fraction count by
@@ -272,7 +283,7 @@ def _fractions_matching_tumour_dose(
     """
     def tumour_dose(count: float) -> float:
         return compute(oar, tum, Prescription(
-            courses=(Course(dose, count, prescription.courses[0].gap_days),),
+            courses=_swap_last_course(prescription.courses, dose, count),
             reference_dose=prescription.reference_dose,
             bifractionated=prescription.bifractionated,
         ), options, library).eqd_tumour_total
@@ -435,8 +446,6 @@ def main() -> None:
             with st.expander(f"Course {position}", expanded=position == course_count):
                 courses.append(_course_inputs(position, use_sliders))
 
-    course1 = courses[0]
-
     prescription = Prescription(
         courses=tuple(courses),
         reference_dose=reference_dose,
@@ -557,7 +566,7 @@ def main() -> None:
         rows = []
         if sweep == "Number of fractions":
             x_title, x_current = "Number of fractions", swept.n_fractions
-            values = [n / 2 for n in range(2, 121)]
+            values = list(range(1, 61))
             def _course(v):
                 return Course(swept.dose_per_fraction, v, swept.gap_days)
         else:
@@ -650,8 +659,11 @@ def main() -> None:
     with window_tab:
         st.markdown(
             f"**Which fraction size reaches the same tumour effect at the lowest cost "
-            f"to the {oar.name.lower()}?** For every fraction size the number of "
-            f"fractions is adjusted to hold the target dose at the value entered."
+            f"to the {oar.name.lower()}?** The **last course** is rewritten at each "
+            f"fraction size, its whole number of fractions chosen to hold the "
+            f"cumulative target dose near {result.eqd_tumour_total:.2f} {unit_gy}"
+            + (f"; courses 1 to {len(courses) - 1} stand as entered."
+               if len(courses) > 1 else ".")
         )
         # A late-responding organ at risk is conventionally modelled without
         # proliferation. Leaving the tabulated dprol in would let a protracted
@@ -662,7 +674,7 @@ def main() -> None:
         if target <= 0 or not result.tumour_total_valid:
             st.info("Enter a first course to draw the therapeutic window.")
         else:
-            rows = []
+            rows, unreachable = [], 0
             for step in range(2, 21):
                 dose = step / 2.0
                 count = _fractions_matching_tumour_dose(
@@ -670,32 +682,31 @@ def main() -> None:
                 )
                 if count is None:
                     continue
-                probe = compute(oar_window, tum, Prescription(
-                    courses=(Course(dose, count, course1.gap_days),),
+                # Fractions are delivered whole. Rounding to the nearest one means
+                # the target can no longer be held exactly, so what each schedule
+                # actually reaches is carried alongside and reported.
+                count = max(1, round(count))
+                schedule = Prescription(
+                    courses=_swap_last_course(courses, dose, count),
                     reference_dose=reference_dose, bifractionated=bifractionated,
-                ), options, library)
-                row = {
+                )
+                probe = compute(oar_window, tum, schedule, options, library)
+                # With whole fractions a large fraction size cannot land on an
+                # arbitrary target: two fractions of 9.5 Gy overshoot or undershoot
+                # by several gray. Comparing the cost of schedules that reach
+                # different tumour doses is meaningless, so those are dropped
+                # rather than allowed to win by under-dosing.
+                if abs(probe.eqd_tumour_total - target) > max(0.5, 0.02 * target):
+                    unreachable += 1
+                    continue
+                rows.append({
                     f"Dose per fraction ({unit_gy})": dose,
                     "Fractions": count,
                     f"Dose to the organ at risk ({unit})": probe.eqd_oar_total,
-                    "Schedule": f"{count:.1f} × {dose:g} Gy",
+                    f"Target reached ({unit})": probe.eqd_tumour_total,
+                    "Schedule": f"{count:d} × {dose:g} Gy",
                     "NTCP (%)": probe.ntcp_percent,
-                }
-                if show_band and spread > 0:
-                    # The fraction count is held at its central solution here, so
-                    # this is the spread on the organ dose for a fixed schedule,
-                    # not a re-matched one.
-                    band, _ = _alpha_beta_band(
-                        oar_window, tum,
-                        Prescription(courses=(Course(dose, count, course1.gap_days),),
-                                     reference_dose=reference_dose,
-                                     bifractionated=bifractionated),
-                        options, library, spread,
-                    )
-                    row["Lower"], row["Upper"] = band
-                else:
-                    row["Lower"] = row["Upper"] = probe.eqd_oar_total
-                rows.append(row)
+                })
             if not rows:
                 st.info("No fractionation reproduces this tumour effect in the range "
                         "scanned. Try a different schedule.")
@@ -709,15 +720,9 @@ def main() -> None:
                     y=alt.Y(f"{y_name}:Q", axis=_vertical_axis(y_name),
                             scale=alt.Scale(zero=False)),
                     tooltip=["Schedule", alt.Tooltip(f"{y_name}:Q", format=".2f"),
+                             alt.Tooltip(f"Target reached ({unit}):Q", format=".2f"),
                              alt.Tooltip("NTCP (%):Q", format=".2f")],
                 )
-                if show_band and spread > 0:
-                    chart = chart + alt.Chart(frame).mark_area(opacity=0.18).encode(
-                        x=alt.X(f"{x_name}:Q", title=x_name),
-                        y=alt.Y("Lower:Q", axis=_vertical_axis(y_name),
-                                scale=alt.Scale(zero=False)),
-                        y2=alt.Y2("Upper:Q"),
-                    )
                 highlight = alt.Chart(pd.DataFrame([best])).mark_point(
                     size=180, color="crimson", filled=True
                 ).encode(x=f"{x_name}:Q", y=f"{y_name}:Q")
@@ -725,17 +730,27 @@ def main() -> None:
                                 use_container_width=True)
                 complication = best["NTCP (%)"]
                 st.success(
-                    f"At a tumour equivalent dose of {target:.2f} {unit}, the least "
-                    f"costly schedule scanned is **{best['Schedule']}**, giving "
-                    f"**{best[y_name]:.2f} {unit}** to the {oar.name.lower()}"
+                    f"Holding the target near {target:.2f} {unit}, the least costly "
+                    f"whole-fraction schedule is **{best['Schedule']}** — reaching "
+                    f"{best[f'Target reached ({unit})']:.2f} {unit_gy} on the target "
+                    f"and giving **{best[y_name]:.2f} {unit}** to the "
+                    f"{oar.name.lower()}"
                     + (f", for a {complication:.1f} % complication probability."
                        if complication is not None and pd.notna(complication) else ".")
                 )
+                if unreachable:
+                    st.caption(
+                        f"{unreachable} of the 19 fraction sizes scanned are not shown: "
+                        f"no whole number of fractions at that size lands within 2 % of "
+                        f"the target, which is a real constraint of large fractions "
+                        f"rather than a gap in the scan."
+                    )
                 st.caption(
-                    "Single course, organ at risk modelled without proliferation as a "
-                    "late-responding tissue. A model comparison, not a clinical "
-                    "recommendation: it knows nothing of dose distribution, volume "
-                    "effects or plan constraints."
+                    "Organ at risk modelled without proliferation, as a late-responding "
+                    "tissue. No α/β band here: varying α/β would change the number of "
+                    "fractions needed to hold the target, so the envelope would stop "
+                    "comparing iso-effective schedules. A model comparison, not a "
+                    "clinical recommendation."
                 )
 
     with scenario_tab:
