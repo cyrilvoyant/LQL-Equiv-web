@@ -462,17 +462,30 @@ def main() -> None:
     unit_gy = "Gy"
     unit = f"Gy EQD{reference_dose:g}"
     columns = st.columns(4)
+    convention = (
+        "**Convention.** The equivalent dose is the dose of a reference schedule "
+        f"at {reference_dose:g} Gy per fraction carrying the same biologically "
+        "effective dose. That reference schedule has its own overall time and "
+        "therefore its own proliferation loss, so both sides of the equality are "
+        "time-corrected. A different and equally common convention divides this "
+        "schedule's BED by 1 + d/(α/β) and leaves the reference uncorrected; it "
+        "returns a different number. Neither is wrong, but they are not the same "
+        "quantity, and reporting one without naming it is how identical cases end "
+        "up with different doses."
+    )
     columns[0].metric(
         f"OAR — {oar.name}",
         "not computable" if not result.oar_total_valid
         else f"{result.eqd_oar_total:.2f} {unit_gy}",
-        help=f"Cumulative equivalent dose to the organ at risk, in {unit}.",
+        help=f"Cumulative equivalent dose to the organ at risk, in {unit}. "
+             + convention.replace("**", ""),
     )
     columns[1].metric(
         f"Target — {tum.name}",
         "not computable" if not result.tumour_total_valid
         else f"{result.eqd_tumour_total:.2f} {unit_gy}",
-        help=f"Cumulative equivalent dose to the target volume, in {unit}.",
+        help=f"Cumulative equivalent dose to the target volume, in {unit}. "
+             + convention.replace("**", ""),
     )
     columns[2].metric(
         "NTCP — Lyman probit",
@@ -502,6 +515,12 @@ def main() -> None:
             f"for the target): **OAR {oar_band[0]:.2f} to {oar_band[1]:.2f} {unit_gy}**, "
             f"**target {tumour_band[0]:.2f} to {tumour_band[1]:.2f} {unit_gy}**."
         )
+
+    with st.expander("Which equivalent dose is this?"):
+        st.markdown(convention)
+        st.latex(r"\mathrm{BED}\big(d_r, n_r, T(n_r)\big) = "
+                 r"\mathrm{BED}\big(d, n, T(n)\big), \qquad "
+                 r"\mathrm{EQD}_{d_r} = n_r\,d_r")
 
     if result.saturated:
         st.error(

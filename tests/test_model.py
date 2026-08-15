@@ -5,8 +5,8 @@ from __future__ import annotations
 import pytest
 
 from lqlequiv import Course, Options, Prescription, TCPModel, compute, load_library
-from lqlequiv.model import MAX_COURSES
 from lqlequiv.model import (
+    MAX_COURSES,
     normal_tissue_complication_probability,
     radiation_induced_cancer_risk,
     tumour_control_probability,
