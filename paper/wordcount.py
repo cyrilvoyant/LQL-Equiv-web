@@ -50,11 +50,16 @@ def main() -> int:
     print("-" * 40)
     print(f"{'body total (excl. refs, tables)':<34}{words(body):>6}")
 
+    equations = len(re.findall(r"\\begin\{equation\}", tex))
+    figures = len(re.findall(r"\\begin\{figure\}", tex))
+    tables = len(re.findall(r"\\begin\{table\}", tex))
+    keys = {k.strip() for g in re.findall(r"\\cite\{([^}]*)\}", tex)
+            for k in g.split(",")}
     print()
-    print(f"equations   {len(re.findall(r'\\begin{equation}', tex)):>3}")
-    print(f"figures     {len(re.findall(r'\\begin{figure}', tex)):>3}")
-    print(f"tables      {len(re.findall(r'\\begin{table}', tex)):>3}")
-    print(f"citations   {len(set(k.strip() for g in re.findall(r'\\cite\{([^}]*)\}', tex) for k in g.split(','))):>3}")
+    print(f"equations   {equations:>3}")
+    print(f"figures     {figures:>3}")
+    print(f"tables      {tables:>3}")
+    print(f"citations   {len(keys):>3}")
     return 0
 
 

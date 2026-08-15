@@ -9,9 +9,8 @@
 \usepackage{amsmath,amssymb}
 \usepackage{booktabs}
 \usepackage{graphicx}
-\usepackage{longtable}
 \usepackage{url}
-\usepackage{orcidlink}
+\usepackage{orcidlink} % if unavailable, remove this line and the \orcidlink call
 \usepackage[hidelinks]{hyperref}
 
 \journal{SoftwareX}
@@ -58,7 +57,8 @@ the user's machine through WebAssembly: no installation, no licence, no data
 transmitted. It was validated case by case against the 2014 MATLAB reference
 implementation over 4438 treatment schedules, agreeing on 69\,125 of 69\,131
 compared values, and its solver was separately proved equivalent to the
-original exhaustive search over 10\,554 searches.
+original exhaustive search over 10\,554 searches. It is intended for research
+and education and is not a medical device.
 \end{abstract}
 
 \begin{keyword}
@@ -82,19 +82,21 @@ WebAssembly
 C1 & Current code version & v3.0.0 \\
 C2 & Permanent link to code/repository &
      \url{https://github.com/cyrilvoyant/LQL-Equiv-web} \\
-C3 & Permanent link to reproducible capsule &
+   & \quad archived release &
      \url{https://doi.org/10.5281/zenodo.21948624} \\
-C4 & Legal code license & MIT License \\
-C5 & Code versioning system used & git \\
-C6 & Software code languages, tools and services used &
+   & \quad running application &
+     \url{https://cyrilvoyant.github.io/LQL-Equiv-web/} \\
+C3 & Legal code license & MIT License \\
+C4 & Code versioning system used & git \\
+C5 & Software code languages, tools and services used &
      Python 3.10+, Streamlit, Altair, Pandas; stlite/Pyodide (WebAssembly);
      GitHub Actions; GitHub Pages \\
-C7 & Compilation requirements, operating environments and dependencies &
+C6 & Compilation requirements, operating environments and dependencies &
      Any modern web browser for the hosted application. As a library:
      Python $\geq$ 3.10, standard library only. Linux, macOS, Windows \\
-C8 & Link to developer documentation/manual &
+C7 & Link to developer documentation/manual &
      \url{https://github.com/cyrilvoyant/LQL-Equiv-web/blob/main/README.md} \\
-C9 & Support email for questions & cyril.voyant@minesparis.psl.eu \\
+C8 & Support email for questions & cyril.voyant@minesparis.psl.eu \\
 \bottomrule
 \end{tabular}
 \caption{Code metadata.}
@@ -362,22 +364,19 @@ fraction and 1 to 100 fractions with gaps and two-fractions-a-day schedules, and
 
 MATLAB writes its interface fields with six significant digits, which sets the
 resolution at which the two implementations can be compared at all. At that
-resolution, 69\,125 of 69\,131 compared values agree (99.991\,\%). The six
-remaining values belong to two cases out of 4438 in which the exact root falls
-precisely halfway between two points of the original search grid, so that the
-2014 answer is decided by floating-point noise at the fifteenth decimal; the
-consequence is a 0.02\,Gy shift, below any resolution the model itself
-possesses.
+resolution they agree on all but six values, belonging to two cases in which the
+exact root falls precisely halfway between two points of the original search
+grid, so that the 2014 answer is decided by floating-point noise at the
+fifteenth decimal; the consequence is a 0.02\,Gy shift.
 
-Restricting the comparison to the equivalent doses gives $n = 34\,418$ paired
-values (Fig.~\ref{fig:agreement}, Table~\ref{tab:validation}). The question is
-one of equivalence rather than of difference, and is treated as such: against a
-margin of $\pm$0.05\,Gy, two orders of magnitude below any decision threshold in
-this field, the bootstrap interval on the mean signed difference lies wholly
-inside. A Wilcoxon signed-rank test on the 2750 non-zero pairs returns
-$p < 10^{-4}$, which must not be read as disagreement: at that sample size it
-detects the six-significant-digit rounding of the captured reference, an effect
-of order $10^{-5}$\,Gy. It is reported so that it is not mistaken for evidence.
+The question is one of equivalence rather than of difference and is treated as
+such (Fig.~\ref{fig:agreement}, Table~\ref{tab:validation}): against a margin of
+$\pm$0.05\,Gy, two orders of magnitude below any decision threshold in this
+field, the bootstrap interval on the mean signed difference lies wholly inside.
+A Wilcoxon signed-rank test on the 2750 non-zero pairs returns $p < 10^{-4}$,
+which must not be read as disagreement: at that sample size it detects the
+six-significant-digit rounding of the captured reference, an effect of order
+$10^{-5}$\,Gy. It is reported so that it is not mistaken for evidence.
 
 \begin{table}[h!]
 \centering
@@ -446,7 +445,17 @@ parameters, through a division by zero; it is now reported as unavailable.
 
 The software is a model comparison tool and not a treatment planning system: it
 knows nothing of dose distribution, volume effects or plan constraints, and
-voxel-level accumulation \cite{singh2018,calvo2026} is outside its scope. The
+voxel-level accumulation \cite{singh2018,calvo2026} is outside its scope. Two
+consequences follow for the toxicity endpoints and should be stated plainly.
+Equation~\eqref{eq:ntcp} is a point estimate on a single equivalent dose,
+whereas the Lyman formalism is defined on a dose-volume histogram through an
+equivalent uniform dose \cite{niemierko1997} and is established near
+2\,Gy per fraction; away from that fraction size, and for a serial organ where
+the relevant quantity is a near-maximum rather than a mean, it should be read as
+indicative. Equation~\eqref{eq:tcp} uses $\gamma_{50}$ and
+$\mathrm{TCD}_{50}$ values that the 2014 library carried but never used, so the
+tumour control probability is newly exposed and, unlike the equivalent dose, has
+not itself been validated against clinical outcome. The
 radiobiological library is the one published in 2014; its Lyman parameters fall
 in the range of the Emami/Burman fits \cite{emami1991,burman1991}, which is
 their probable but unverified origin, and the provenance of every value is
@@ -478,13 +487,31 @@ result.tcp_percent       # tumour control probability
 \end{verbatim}
 
 \paragraph{Cost of an interruption.} A course of 25~$\times$~2\,Gy delivered to
-the standard tumour reaches 50.00\,Gy EQD2. Inserting a ten-day interruption
-brings it to 37.48\,Gy: the gap costs 12.5\,Gy EQD2, more than six 2\,Gy
-fractions. Against the added non-proliferating tumour the same gap costs
-nothing, which separates the time effect from the fractionation effect. This is
-the quantity that compensation guidance asks a department to estimate
+the standard tumour reaches 50.00\,Gy EQD2. Ten missed treatment sessions, which
+equation~\eqref{eq:time} turns into fourteen additional calendar days, bring it
+to 37.48\,Gy: the interruption costs 12.5\,Gy EQD2, more than six 2\,Gy
+fractions. Against the added non-proliferating tumour the same interruption
+costs nothing, which separates the time effect from the fractionation effect.
+This is the quantity that compensation guidance asks a department to estimate
 \cite{rcr2019,jones2020,dale2024}, and the one the workshop found practitioners
 estimating inconsistently \cite{voyant2026standard}.
+
+\paragraph{Two definitions of the same word.} The companion standardisation
+study reports, for 35~$\times$~2\,Gy in a head-and-neck target
+($\alpha/\beta = 10$\,Gy, $\alpha = 0.3$\,Gy$^{-1}$, $T_k = 21$\,d,
+$T_p = 4$\,d), a time-corrected EQD2 of 57.97\,Gy without interruption and
+54.60\,Gy with one \cite{voyant2026standard}. Given the same parameters this
+software returns $D_\mathrm{prol} = 0.5775$\,Gy\,d$^{-1}$ by
+equation~\eqref{eq:dprol}, identical to theirs, yet 70.00\,Gy without
+interruption. Neither is wrong: the study divides the schedule's own BED by
+$1+d_r/(\alpha/\beta)$, whereas equation~\eqref{eq:core} matches it against a
+reference schedule that is itself protracted and therefore loses the same dose
+to proliferation, so at $d = d_r$ the two losses cancel and the equivalent dose
+returns the physical dose. The first quantity measures effect delivered, the
+second measures schedule equivalence. Reporting either without saying which is
+exactly how a 25.8\,\% agreement rate arises, and is the reason this
+implementation states its definition in equation~\eqref{eq:core} rather than in
+prose.
 
 \paragraph{Direction of the time effect.} Proliferation penalises both sides of
 an equivalence, and the longer side loses more, so its effect changes sign with
@@ -551,15 +578,17 @@ transition dose $d_t = 2\,\alpha/\beta$.}
 \label{fig:lql}
 \end{figure}
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.9\textwidth]{figures/fig4_interface.png}
-\caption{The application running in a browser. Left, tissue selection and model
-options; centre, the courses and the computed equivalent doses, complication and
-control probabilities; below, the isoeffect curves with the $\alpha/\beta$
-uncertainty band.}
-\label{fig:interface}
-\end{figure}
+% Save a screenshot of https://cyrilvoyant.github.io/LQL-Equiv-web/ as
+% figures/fig4_interface.png, then uncomment this block.
+%\begin{figure}[t]
+%\centering
+%\includegraphics[width=0.9\textwidth]{figures/fig4_interface.png}
+%\caption{The application running in a browser. Left, tissue selection and model
+%options; centre, the courses and the computed equivalent doses, complication and
+%control probabilities; below, the isoeffect curves with the $\alpha/\beta$
+%uncertainty band.}
+%\label{fig:interface}
+%\end{figure}
 
 %% ---------------------------------------------------------------------------
 \section{Impact}
