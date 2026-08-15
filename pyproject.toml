@@ -15,8 +15,8 @@ keywords = [
     "linear-quadratic-linear model", "NTCP", "TCP", "medical physics",
 ]
 authors = [
-    {name = "Cyril Voyant", email = "cyrilvoyant@gmail.com"},
-    {name = "Daniel Julian"},
+    {name = "Cyril Voyant", email = "cyril.voyant@minesparis.psl.eu"},
+    {name = "Daniel Julian", email = "Julian@ccgm.fr"},
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",

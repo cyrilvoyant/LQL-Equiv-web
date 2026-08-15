@@ -32,7 +32,18 @@ from lqlequiv.model import (  # noqa: E402
 )
 from lqlequiv.tissues import load_library  # noqa: E402
 
-CONTRIBUTORS = ["Cyril Voyant", "Daniel Julian"]
+CONTRIBUTORS = [
+    ("Cyril Voyant",
+     "Mines Paris, PSL University — Centre for Observation, Impacts, Energy "
+     "(O.I.E.), Sophia-Antipolis, France",
+     "cyril.voyant@minesparis.psl.eu",
+     "https://orcid.org/0000-0003-0242-7377"),
+    ("Daniel Julian",
+     "Centre de Cancérologie du Grand Montpellier — Radiotherapy Unit, "
+     "Montpellier, France",
+     "Julian@ccgm.fr",
+     None),
+]
 
 REPOSITORY_URL = "https://github.com/cyrilvoyant/LQL-Equiv-web"
 
@@ -792,9 +803,13 @@ def main() -> None:
             "it knows nothing of dose distribution, volume effects or plan constraints."
         )
 
-        st.markdown("#### Contributors")
-        for person in CONTRIBUTORS:
-            st.markdown(f"- **{person}**")
+        st.markdown("#### Authors")
+        for name, affiliation, email, orcid in CONTRIBUTORS:
+            line = f"**{name}**"
+            if orcid:
+                line += f" — [ORCID {orcid.rsplit('/', 1)[-1]}]({orcid})"
+            st.markdown(f"{line}  \n{affiliation}  \n`{email}`")
+        st.caption("Corresponding author: Cyril Voyant.")
 
         st.markdown("#### Citing this software")
         st.markdown(

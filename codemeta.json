@@ -13,10 +13,22 @@
   "url": "https://cyrilvoyant.github.io/LQL-Equiv-web/",
   "license": "https://spdx.org/licenses/MIT",
   "programmingLanguage": [
-    {"@type": "ComputerLanguage", "name": "Python", "version": ">=3.10"}
+    {
+      "@type": "ComputerLanguage",
+      "name": "Python",
+      "version": ">=3.10"
+    }
   ],
-  "runtimePlatform": ["Python 3", "Web browser (WebAssembly)"],
-  "operatingSystem": ["Linux", "macOS", "Windows", "Any web browser"],
+  "runtimePlatform": [
+    "Python 3",
+    "Web browser (WebAssembly)"
+  ],
+  "operatingSystem": [
+    "Linux",
+    "macOS",
+    "Windows",
+    "Any web browser"
+  ],
   "applicationCategory": "Medical physics",
   "developmentStatus": "active",
   "isAccessibleForFree": true,
@@ -43,19 +55,35 @@
       "givenName": "Cyril",
       "familyName": "Voyant",
       "@id": "https://orcid.org/0000-0003-0242-7377",
+      "email": "cyril.voyant@minesparis.psl.eu",
       "url": "https://person.cyrilvoyant.com",
       "affiliation": {
         "@type": "Organization",
-        "name": "Universite Nice Sophia Antipolis, France"
+        "name": "Mines Paris, PSL University",
+        "department": "Centre for Observation, Impacts, Energy (O.I.E.)",
+        "address": {
+          "@type": "PostalAddress",
+          "addressLocality": "Sophia-Antipolis",
+          "postalCode": "06904",
+          "addressCountry": "France"
+        }
       }
     },
     {
       "@type": "Person",
       "givenName": "Daniel",
       "familyName": "Julian",
+      "email": "Julian@ccgm.fr",
       "affiliation": {
         "@type": "Organization",
-        "name": "Centre de Cancerologie du Grand Montpellier, France"
+        "name": "Centre de Cancerologie du Grand Montpellier",
+        "department": "Radiotherapy Unit",
+        "address": {
+          "@type": "PostalAddress",
+          "addressLocality": "Montpellier",
+          "postalCode": "34000",
+          "addressCountry": "France"
+        }
       }
     }
   ],
@@ -63,7 +91,20 @@
     "@type": "Person",
     "givenName": "Cyril",
     "familyName": "Voyant",
-    "@id": "https://orcid.org/0000-0003-0242-7377"
+    "@id": "https://orcid.org/0000-0003-0242-7377",
+    "email": "cyril.voyant@minesparis.psl.eu",
+    "url": "https://person.cyrilvoyant.com",
+    "affiliation": {
+      "@type": "Organization",
+      "name": "Mines Paris, PSL University",
+      "department": "Centre for Observation, Impacts, Energy (O.I.E.)",
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Sophia-Antipolis",
+        "postalCode": "06904",
+        "addressCountry": "France"
+      }
+    }
   },
   "softwareRequirements": [
     "Python >= 3.10 (core has no third-party dependency)",

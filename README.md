@@ -229,13 +229,15 @@ If you use this software, cite the methodology paper and the software (see
 - The original MATLAB application, archived on Zenodo:
   [doi:10.5281/zenodo.16739883](https://doi.org/10.5281/zenodo.16739883)
 
-## Contributors
+## Authors
 
-- **Cyril Voyant** — [ORCID 0000-0003-0242-7377](https://orcid.org/0000-0003-0242-7377)
-- **Daniel Julian**
+**Cyril Voyant** — [ORCID 0000-0003-0242-7377](https://orcid.org/0000-0003-0242-7377)
+Mines Paris, PSL University — Centre for Observation, Impacts, Energy (O.I.E.),
+Sophia-Antipolis 06904, France · `cyril.voyant@minesparis.psl.eu` · *corresponding author*
 
-Developed with the radiotherapy unit of CHD Castelluccio, Ajaccio, and the
-University of Corsica.
+**Daniel Julian**
+Centre de Cancérologie du Grand Montpellier — Radiotherapy Unit,
+Montpellier 34000, France · `Julian@ccgm.fr`
 
 ## Licence
 

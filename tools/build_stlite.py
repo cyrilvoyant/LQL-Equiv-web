@@ -101,8 +101,25 @@ def _structured_data() -> str:
                         "name": "Cyril Voyant",
                         "identifier": "https://orcid.org/0000-0003-0242-7377",
                         "url": "https://person.cyrilvoyant.com",
+                        "email": "cyril.voyant@minesparis.psl.eu",
+                        "affiliation": {
+                            "@type": "Organization",
+                            "name": "Mines Paris, PSL University",
+                            "department": "Centre for Observation, Impacts, Energy (O.I.E.)",
+                            "address": "Sophia-Antipolis, 06904, France",
+                        },
                     },
-                    {"@type": "Person", "name": "Daniel Julian"},
+                    {
+                        "@type": "Person",
+                        "name": "Daniel Julian",
+                        "email": "Julian@ccgm.fr",
+                        "affiliation": {
+                            "@type": "Organization",
+                            "name": "Centre de Cancerologie du Grand Montpellier",
+                            "department": "Radiotherapy Unit",
+                            "address": "Montpellier, 34000, France",
+                        },
+                    },
                 ],
                 "citation": [
                     {"@id": SITE_URL + "#paper2014"},

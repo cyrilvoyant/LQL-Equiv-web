@@ -6,13 +6,21 @@ type: software
 authors:
   - given-names: "Cyril"
     family-names: "Voyant"
-    affiliation: "Universite Nice Sophia Antipolis, France"
+    affiliation: "Mines Paris, PSL University, Centre for Observation, Impacts, Energy (O.I.E.), Sophia-Antipolis, France"
+    email: "cyril.voyant@minesparis.psl.eu"
+    city: "Sophia-Antipolis"
+    post-code: "06904"
+    country: "FR"
     website: "https://person.cyrilvoyant.com"
     orcid: "https://orcid.org/0000-0003-0242-7377"
 
   - given-names: "Daniel"
     family-names: "Julian"
-    affiliation: "Centre de Cancerologie du Grand Montpellier, France"
+    affiliation: "Centre de Cancerologie du Grand Montpellier, Radiotherapy Unit, Montpellier, France"
+    email: "Julian@ccgm.fr"
+    city: "Montpellier"
+    post-code: "34000"
+    country: "FR"
 
 identifiers:
   - type: doi
