@@ -60,7 +60,7 @@ class Options:
     #: Calendar model beyond 86 fractions. See :mod:`lqlequiv.schedule`.
     time_model: TimeModel = TimeModel.LEGACY
     #: Sigmoid used for the tumour control probability, which is new in 3.0.
-    tcp_model: "TCPModel" = None  # type: ignore[assignment]
+    tcp_model: TCPModel = None  # type: ignore[assignment]
 
     def __post_init__(self) -> None:
         if self.tcp_model is None:

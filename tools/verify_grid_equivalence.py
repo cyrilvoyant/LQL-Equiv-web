@@ -31,11 +31,15 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from lqlequiv.model import (  # noqa: E402
-    Course, Options, Prescription, _incomplete_repair, _lql_dose_term,
-    _tumour_dprol, compute,
+from lqlequiv.model import (
+    Course,
+    Options,
+    Prescription,
+    _lql_dose_term,
+    _tumour_dprol,
+    compute,
 )
-from lqlequiv.tissues import load_library  # noqa: E402
+from lqlequiv.tissues import load_library
 
 GRID = 0.01
 

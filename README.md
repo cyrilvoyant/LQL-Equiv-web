@@ -137,13 +137,8 @@ If you use this software, cite the methodology paper and the software (see
 
 ## Contributors
 
-| | |
-| --- | --- |
-| **Cyril Voyant** | Model, original software, scientific lead — [ORCID 0000-0003-0242-7377](https://orcid.org/0000-0003-0242-7377) |
-| **Daniel Julian** | Model, original software |
-| **Rudy Roustit** | Original software, 2014 release |
-| **Katia Biffi** | Original software, 2014 release |
-| **Céline Lantieri** | Original software, 2014 release |
+- **Cyril Voyant** — [ORCID 0000-0003-0242-7377](https://orcid.org/0000-0003-0242-7377)
+- **Daniel Julian**
 
 Developed with the radiotherapy unit of CHD Castelluccio, Ajaccio, and the
 University of Corsica.

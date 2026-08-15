@@ -20,17 +20,16 @@ if _SRC.exists() and str(_SRC) not in sys.path:
 
 from lqlequiv import __version__  # noqa: E402
 from lqlequiv.model import (  # noqa: E402
-    Course, Options, Prescription, TCPModel, TimeModel, compute,
+    Course,
+    Options,
+    Prescription,
+    TCPModel,
+    TimeModel,
+    compute,
 )
 from lqlequiv.tissues import load_library  # noqa: E402
 
-CONTRIBUTORS = [
-    ("Cyril Voyant", "Model, original software, scientific lead"),
-    ("Daniel Julian", "Model, original software"),
-    ("Rudy Roustit", "Original software (2014 release)"),
-    ("Katia Biffi", "Original software (2014 release)"),
-    ("Céline Lantieri", "Original software (2014 release)"),
-]
+CONTRIBUTORS = ["Cyril Voyant", "Daniel Julian"]
 
 REFERENCES = [
     ("Voyant C, Julian D, Roustit R, Biffi K, Lantieri C. "
@@ -41,6 +40,10 @@ REFERENCES = [
      "A short synthesis concerning biological effects and equivalent doses in radiotherapy. "
      "*Journal of Radiology and Oncology* 2017;1:039-045.",
      "https://doi.org/10.29328/journal.jro.1001005"),
+    ("Improving clinical decision-making in radiotherapy: a comparative analysis of "
+     "linear-quadratic (LQ) and linear-quadratic-linear (LQL) dose models. "
+     "*Clinical Oncology* 2025;45.",
+     "https://doi.org/10.1016/j.clon.2025.103893"),
     ("LQ-Equiv, the original MATLAB application (2014). Software, archived on Zenodo.",
      "https://doi.org/10.5281/zenodo.16739883"),
 ]
@@ -332,8 +335,8 @@ def main() -> None:
 
     with about_tab:
         st.markdown("#### Contributors")
-        for person, role in CONTRIBUTORS:
-            st.markdown(f"- **{person}** — {role}")
+        for person in CONTRIBUTORS:
+            st.markdown(f"- **{person}**")
         st.markdown("#### References")
         for text, url in REFERENCES:
             st.markdown(f"- {text} [{url}]({url})")

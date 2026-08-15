@@ -98,7 +98,7 @@ def _branches(text: str, selector: str) -> dict[int, dict]:
     """Return ``{popup_index: {matlab_name: value}}`` for one ``if/elseif`` chain."""
     out: dict[int, dict] = {}
     pattern = r"\b%s\s*==\s*(\d+)\s*\n(.*?)(?=\n\s*(?:elseif|else\b|end\b))" % selector
-    for match in re.finditer(pattern, text, re.S):
+    for match in re.finditer(pattern, text, re.DOTALL):
         body = match.group(2)
         params: dict[str, object] = {}
         for assign in re.finditer(r"(\w+)\s*=\s*('([^']*)'|-?[\d.]+)", body):
@@ -113,7 +113,7 @@ def _displayed(text: str, selector: str) -> dict[int, dict[str, float]]:
     """Return the numbers the GUI *shows* in its listbox, per popup index."""
     out: dict[int, dict[str, float]] = {}
     pattern = r"\(?%s\s*==\s*(\d+)\)?\s*\n(.*?)(?=\n\s*(?:elseif|else\b|end\b))" % selector
-    for match in re.finditer(pattern, text, re.S):
+    for match in re.finditer(pattern, text, re.DOTALL):
         shown: dict[str, float] = {}
         for line in re.findall(r"'([^']*)'", match.group(2)):
             item = re.match(r"\s*([\w/]+)\s*=\s*(-?\d+(?:[.,]\d+)?)", line)

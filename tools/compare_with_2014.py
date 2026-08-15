@@ -21,8 +21,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from lqlequiv.model import Course, Options, Prescription, compute  # noqa: E402
-from lqlequiv.tissues import load_library  # noqa: E402
+from lqlequiv.model import Course, Options, Prescription, compute
+from lqlequiv.tissues import load_library
 
 #: Golden field -> (result attribute, human label)
 SCALAR_FIELDS = {
