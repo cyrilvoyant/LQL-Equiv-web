@@ -87,7 +87,7 @@ def _structured_data() -> str:
                     "Tumour control probability (TCP)",
                     "Radiation-induced cancer risk",
                     "Accelerated proliferation and incomplete inter-fraction repair",
-                    "Up to three successive treatment courses with treatment gaps",
+                    "Any number of successive treatment courses, with treatment gaps",
                     "34 organs at risk and 20 tumour sites",
                 ],
                 "keywords": (

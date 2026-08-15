@@ -73,21 +73,54 @@ None are shipped yet. The loader accepts additional sets so that an updated
 library can be selected without replacing the historical one — reproducing the
 2014 results must remain possible.
 
-Two sources have been identified and verified as suitable starting points:
+### Why no set is drawn from van Leeuwen 2018
 
 > van Leeuwen CM, Oei AL, Crezee J, Bel A, Franken NAP, Stalpers LJA, Kok HP.
 > The alfa and beta of tumours: a review of parameters of the linear-quadratic
 > model, derived from clinical radiotherapy studies. *Radiation Oncology*
 > 2018;13(1):96. [doi:10.1186/s13014-018-1040-z](https://doi.org/10.1186/s13014-018-1040-z)
-> — open access; a systematic review of clinically derived tumour α, β and α/β.
+
+This systematic review was the obvious candidate for an updated tumour set. It
+is not usable as one, for a reason of substance rather than of access.
+
+The review collects 149 reported estimates of α/β across 64 clinical studies and
+finds heterogeneity above I² = 75 %, within tumour sites as well as between
+them. Its estimates are published as forest plots, not as a table of
+per-site values, and that is deliberate. Its own conclusion reads:
+
+> "for clinical use of the LQ model, LQ parameters for tumour should be selected
+> carefully, based on tumour site, histology and the applied LQ model. To account
+> for uncertainties in LQ parameter estimates, exploring a range of values is
+> recommended."
+
+Condensing those forest plots into one number per site would produce exactly the
+false precision the paper argues against, under a citation that does not support
+it. So no such set is shipped.
+
+What the review does support, and what has been implemented instead, is the
+**α/β sensitivity range** in the interface: the equivalent dose is reported
+across a user-chosen spread of α/β rather than at a single tabulated value.
+
+Three of its findings are worth recording even so, and none of them is a
+replacement value:
+
+- prostate tumours appear to have α/β of roughly 1–2 Gy, lower than commonly
+  assumed and lower than the 3.1 Gy this library tabulates;
+- head and neck sites cluster around α/β = 10 Gy;
+- the fitted α/β depends on the model itself, not only on the tumour: one study
+  in the review reports 11.1 Gy when a time factor is included and 5.1 Gy
+  without. Since LQL-Equiv always models time, values fitted without a time
+  factor are not directly transferable into it.
+
+### Organs at risk
 
 > Marks LB, Yorke ED, Jackson A, *et al.* Use of normal tissue complication
 > probability models in the clinic. *Int J Radiat Oncol Biol Phys*
 > 2010;76(3 Suppl):S10–S19. — the QUANTEC update of the Emami tolerances.
 
-Transcription from these will be done by reading the papers, one value at a
-time, each carrying its own citation in the data file. Until that is done, no
-partial or approximate alternative set is shipped.
+Not yet transcribed. When it is, it will be read one value at a time, each
+carrying its own citation in the data file; no partial or approximate set will
+be shipped before then.
 
 ## Adding a parameter set
 

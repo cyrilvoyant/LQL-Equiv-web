@@ -23,7 +23,7 @@ by case against it.
 
 ## What it does
 
-Given an organ at risk, a tumour site, and up to three successive treatment
+Given an organ at risk, a tumour site, and an organ at risk, a tumour site and a sequence of successive treatment
 courses separated by gaps, it computes:
 
 | Quantity | Model |

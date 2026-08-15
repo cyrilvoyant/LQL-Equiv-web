@@ -7,7 +7,7 @@ in the 2014 MATLAB application (``cyrilvoyant/LQ-Equiv``), covering:
   Astrahan, the proliferation term of Dale, and the incomplete-repair correction
   of Thames for two fractions a day;
 * the equivalent dose in a reference fractionation (EQD, usually EQD2), for both
-  the organ at risk and the tumour, over up to three successive courses;
+  the organ at risk and the tumour, over any number of successive courses;
 * normal-tissue complication probability under the Lyman probit model;
 * radiation-induced cancer risk under a linear-exponential model.
 
@@ -41,9 +41,17 @@ _FIXED_DPROL_TUMOURS = (6, 15)
 
 #: The reference search grid of the 2014 application: fraction counts in
 #: hundredths, from 0 to 100 for the organ at risk, -100 to 100 for the tumour.
+#: A schedule whose equivalent exceeds 100 reference fractions is reported *at*
+#: the bound by the original software, silently: the answer stops moving.
 _GRID_STEP = 0.01
 _OAR_BOUNDS = (0.0, 100.0)
 _TUMOUR_BOUNDS = (-100.0, 100.0)
+
+#: Those bounds existed only because the 2014 code scanned a finite grid. With
+#: the root solved in closed form there is no such constraint, so exact mode
+#: widens them tenfold and the answer keeps moving.
+_EXACT_OAR_BOUNDS = (0.0, 1000.0)
+_EXACT_TUMOUR_BOUNDS = (-1000.0, 1000.0)
 
 
 class NotComputable(Exception):
@@ -84,17 +92,25 @@ class Course:
         return self.dose_per_fraction == 0.0 or self.n_fractions == 0.0
 
 
+#: The 2014 interface had exactly three course slots. Nothing in the model
+#: depends on that number -- courses accumulate through a loop -- so the limit
+#: here is only a guard against absurd input. Schedules of one to three courses
+#: behave exactly as the 2014 application; beyond that the same rules simply
+#: keep applying.
+MAX_COURSES = 10
+
+
 @dataclass(frozen=True)
 class Prescription:
-    """A reference fractionation plus up to three successive courses."""
+    """A reference fractionation plus a sequence of successive courses."""
 
     courses: tuple[Course, ...]
     reference_dose: float = 2.0
     bifractionated: bool = False
 
     def __post_init__(self) -> None:
-        if len(self.courses) > 3:
-            raise ValueError("at most three successive courses are supported")
+        if len(self.courses) > MAX_COURSES:
+            raise ValueError(f"at most {MAX_COURSES} successive courses are supported")
         if self.reference_dose < 0:
             raise ValueError("reference dose must not be negative")
         for course in self.courses:
@@ -114,6 +130,11 @@ class CourseResult:
     overall_days_tumour: float
     equivalent_fractions_oar: float
     equivalent_fractions_tumour: float
+    #: True when the equivalent fraction count ran into the end of the search
+    #: interval, so the answer is the bound rather than a solution. The 2014
+    #: application reported the bound with no indication that it had done so.
+    oar_saturated: bool = False
+    tumour_saturated: bool = False
 
 
 @dataclass(frozen=True)
@@ -138,6 +159,22 @@ class Result:
     def total_dose(self) -> float:
         return sum(c.bed_oar for c in self.courses)
 
+    @property
+    def saturated(self) -> bool:
+        """Whether any equivalent dose is a search bound rather than a solution.
+
+        Beyond roughly a hundred reference fractions the 2014 search interval
+        runs out and the equivalent dose stops responding to the schedule. Such
+        a value must not be read as a result.
+        """
+        return any(c.oar_saturated or c.tumour_saturated for c in self.courses)
+
+
+def _at_bound(value: float, bounds: tuple[float, float]) -> bool:
+    """Whether a solved fraction count is sitting on the end of the interval."""
+    low, high = bounds
+    return abs(value - low) < _GRID_STEP or abs(value - high) < _GRID_STEP
+
 
 def _heaviside(x: float) -> float:
     """Step function, zero at the origin -- the convention the 2014 code relies on."""
@@ -152,22 +189,6 @@ def _incomplete_repair(tissue: Tissue) -> float:
     if phi >= 1.0:
         return 0.0
     return (phi / (1 - phi)) * (2 - (1 - phi**2) / (1 - phi))
-
-
-def _quantise(value: float, bounds: tuple[float, float], options: Options) -> float:
-    """Clamp to the search interval, and snap to the 2014 grid if asked.
-
-    The 2014 code takes the ``min`` over a grid of hundredths of a fraction; on
-    an exact tie MATLAB's ``min`` returns the first index, that is, the lower
-    one. ``ceil(x - 0.5)`` reproduces that half-down rounding, including for
-    negative fraction counts.
-    """
-    low, high = bounds
-    if not options.legacy_quantisation:
-        return min(max(value, low), high)
-    index = math.ceil(value / _GRID_STEP - 0.5)
-    index = min(max(index, round(low / _GRID_STEP)), round(high / _GRID_STEP))
-    return index * _GRID_STEP
 
 
 def _lql_dose_term(dose: float, tissue: Tissue, gamma: float, repair: float) -> float:
@@ -227,9 +248,10 @@ def _oar_equivalent_fractions(
     if slope == 0.0:
         return 0.0
     root = bed / slope
-    low, high = _OAR_BOUNDS
     if not options.legacy_quantisation:
+        low, high = _EXACT_OAR_BOUNDS
         return min(max(root, low), high)
+    low, high = _OAR_BOUNDS
 
     lowest, highest = round(low / _GRID_STEP), round(high / _GRID_STEP)
     exact = root / _GRID_STEP
@@ -317,7 +339,8 @@ def _tumour_equivalent_fractions(
     slope = _lql_dose_term(reference_dose, tissue, gamma, 0.0)
     already = (tissue.Tk - days_before) * _heaviside(tissue.Tk - days_before)
     kink = (tissue.Tk - days_before) * 5.0 / 7.0
-    low, high = _TUMOUR_BOUNDS
+    low, high = (_TUMOUR_BOUNDS if options.legacy_quantisation
+                 else _EXACT_TUMOUR_BOUNDS)
 
     roots: list[float] = [kink]
     # Before the kink no proliferation applies.
@@ -466,6 +489,9 @@ def compute(
     oar = organ if isinstance(organ, Tissue) else library.organ(organ)
     tum = tumour if isinstance(tumour, Tissue) else library.tumour_site(tumour)
 
+    oar_bounds = _OAR_BOUNDS if options.legacy_quantisation else _EXACT_OAR_BOUNDS
+    tumour_bounds = (_TUMOUR_BOUNDS if options.legacy_quantisation
+                     else _EXACT_TUMOUR_BOUNDS)
     repair_oar = _incomplete_repair(oar) if prescription.bifractionated else 0.0
     repair_tum = _incomplete_repair(tum) if prescription.bifractionated else 0.0
     dprol_tum = _tumour_dprol(tum)
@@ -531,6 +557,9 @@ def compute(
                 bed_tumour=bed_tum, eqd_tumour=eqd_tum,
                 overall_days_oar=days_course, overall_days_tumour=days_tum_course,
                 equivalent_fractions_oar=n_oar, equivalent_fractions_tumour=n_tum,
+                # An empty course sits at zero by construction, not by saturation.
+                oar_saturated=not empty and _at_bound(n_oar, oar_bounds),
+                tumour_saturated=not empty and _at_bound(n_tum, tumour_bounds),
             )
         )
 

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 import altair as alt
@@ -21,6 +22,7 @@ if _SRC.exists() and str(_SRC) not in sys.path:
 
 from lqlequiv import __version__  # noqa: E402
 from lqlequiv.model import (  # noqa: E402
+    MAX_COURSES,
     Course,
     Options,
     Prescription,
@@ -130,14 +132,12 @@ def _value_input(label: str, key: str, low: float, high: float, step: float,
                            help=help_text or None)
 
 
-def _course_inputs(position: int, use_sliders: bool, enabled: bool = True) -> Course:
+def _course_inputs(position: int, use_sliders: bool) -> Course:
     """Dose per fraction, fraction count and preceding gap for one course."""
-    if not enabled:
-        return Course(0.0, 0.0, 0.0)
     left, middle, right = st.columns(3)
     with left:
         dose = _value_input("Dose per fraction (Gy)", f"d{position}", 0.0, 30.0, 0.1,
-                            2.0 if position == 1 else 0.0, use_sliders)
+                            2.0, use_sliders)
     with middle:
         fractions = _value_input("Number of fractions", f"n{position}", 0.0, 100.0, 1.0,
                                  25.0 if position == 1 else 0.0, use_sliders)
@@ -153,6 +153,35 @@ def _format(value: float | None, unit: str = "", digits: int = 2) -> str:
     if value is None:
         return "not available"
     return f"{value:.{digits}f}{unit}"
+
+
+def _with_alpha_beta(tissue, value: float):
+    """Copy of ``tissue`` at another alpha/beta ratio.
+
+    The transition dose to the linear tail is twice the alpha/beta ratio
+    throughout the shipped library, so it is moved with it rather than left
+    behind at the tabulated value.
+    """
+    return replace(tissue, alpha_beta=value, dt=2.0 * value)
+
+
+def _alpha_beta_band(oar, tum, prescription, options, library, spread: float):
+    """Equivalent dose range obtained by varying both alpha/beta ratios.
+
+    van Leeuwen et al. found the published alpha/beta of a given tumour site to
+    vary widely with histology, stage, model form and endpoint, and recommend
+    exploring a range rather than trusting a point value.
+    """
+    oar_doses, tumour_doses = [], []
+    for factor in (1 - spread, 1 + spread):
+        probe = compute(
+            _with_alpha_beta(oar, oar.alpha_beta * factor),
+            _with_alpha_beta(tum, tum.alpha_beta * factor),
+            prescription, options, library,
+        )
+        oar_doses.append(probe.eqd_oar_total)
+        tumour_doses.append(probe.eqd_tumour_total)
+    return (min(oar_doses), max(oar_doses)), (min(tumour_doses), max(tumour_doses))
 
 
 def _schedule_label(prescription: Prescription) -> str:
@@ -278,6 +307,17 @@ def main() -> None:
             tcp_choice = st.selectbox("Tumour control probability model",
                                       ["Logistic", "Poisson"])
 
+        with st.expander("α/β sensitivity"):
+            st.caption(
+                "Published α/β ratios for a given tumour site vary widely with "
+                "histology, stage, model form and endpoint, so a single tabulated "
+                "value carries real uncertainty. van Leeuwen et al. (2018) "
+                "recommend exploring a range rather than trusting a point value."
+            )
+            show_band = st.toggle("Show the equivalent dose range", value=False)
+            spread = st.slider("Vary α/β by ± %", 0, 60, 30, 5,
+                               disabled=not show_band) / 100.0
+
         options = Options(
             legacy_quantisation=legacy,
             time_model=TimeModel.STAIRCASE if extend else TimeModel.LEGACY,
@@ -300,17 +340,29 @@ def main() -> None:
             }), hide_index=True, width="stretch")
 
     # ----------------------------------------------------------------- inputs
-    st.header("Treatment courses")
-    course1 = _course_inputs(1, use_sliders)
-    with st.expander("Second course"):
-        use2 = st.checkbox("Add a second course", key="use2")
-        course2 = _course_inputs(2, use_sliders, use2)
-    with st.expander("Third course"):
-        use3 = st.checkbox("Add a third course", key="use3", disabled=not use2)
-        course3 = _course_inputs(3, use_sliders, use3 and use2)
+    header, counter = st.columns([3, 1])
+    header.header("Treatment courses")
+    with counter:
+        course_count = st.number_input(
+            "Successive courses", 1, MAX_COURSES, 1, 1,
+            help="Courses accumulate in order, each after its own gap. Use more "
+                 "than one for re-irradiation, boosts, or split courses.",
+        )
+
+    courses = []
+    for position in range(1, int(course_count) + 1):
+        if position == 1:
+            courses.append(_course_inputs(1, use_sliders))
+        else:
+            with st.expander(f"Course {position}", expanded=position == course_count):
+                courses.append(_course_inputs(position, use_sliders))
+
+    course1 = courses[0]
+    course2 = courses[1] if len(courses) > 1 else Course(0.0, 0.0, 0.0)
+    course3 = courses[2] if len(courses) > 2 else Course(0.0, 0.0, 0.0)
 
     prescription = Prescription(
-        courses=(course1, course2, course3),
+        courses=tuple(courses),
         reference_dose=reference_dose,
         bifractionated=bifractionated,
     )
@@ -344,6 +396,30 @@ def main() -> None:
         help="New in 3.0: computed from the tumour dose-response parameters that "
              "the 2014 application loaded but never used.",
     )
+
+    if show_band and spread > 0:
+        oar_band, tumour_band = _alpha_beta_band(
+            oar, tum, prescription, options, library, spread
+        )
+        st.caption(
+            f"Varying α/β by ±{spread * 100:.0f} % "
+            f"({oar.alpha_beta * (1 - spread):.2g}–{oar.alpha_beta * (1 + spread):.2g} Gy "
+            f"for the {oar.name.lower()}, "
+            f"{tum.alpha_beta * (1 - spread):.2g}–{tum.alpha_beta * (1 + spread):.2g} Gy "
+            f"for the target): **OAR {oar_band[0]:.2f} to {oar_band[1]:.2f} {unit_gy}**, "
+            f"**target {tumour_band[0]:.2f} to {tumour_band[1]:.2f} {unit_gy}**."
+        )
+
+    if result.saturated:
+        st.error(
+            "**This schedule exceeds the range the 2014 search could represent.** "
+            "Its equivalent is more than 100 reference fractions, which is where the "
+            "original grid stopped, so the value above is that bound rather than a "
+            "solution — it will not move however much dose you add. The 2014 "
+            "application reported it with no warning at all. Turn off *Reproduce the "
+            "2014 results exactly* in the model options to solve it properly.",
+            icon="🚫",
+        )
 
     if not result.oar_total_valid or not result.tumour_total_valid:
         st.info(
@@ -405,15 +481,32 @@ def main() -> None:
             def _course(v):
                 return Course(v, course1.n_fractions, course1.gap_days)
 
+        first_saturated = None
         for value in values:
             probe = compute(oar, tum, Prescription(
                 courses=(_course(value), course2, course3),
                 reference_dose=reference_dose, bifractionated=bifractionated,
             ), options, library)
+            if probe.saturated:
+                # Past this point the curve is the search bound, not the model.
+                if first_saturated is None:
+                    first_saturated = value
+                continue
             rows.append({x_title: value, "Tissue": f"{oar.name} (OAR)",
                          dose_axis: probe.eqd_oar_total})
             rows.append({x_title: value, "Tissue": f"{tum.name} (target)",
                          dose_axis: probe.eqd_tumour_total})
+
+        if first_saturated is not None:
+            st.warning(
+                f"The curve stops at {first_saturated:g}: beyond that the equivalent "
+                f"exceeds 100 reference fractions, where the 2014 search interval ends, "
+                f"and the value flattens onto that bound instead of continuing. Turn "
+                f"off *Reproduce the 2014 results exactly* to plot the whole range."
+            )
+        if not rows:
+            st.info("Every point in this range is outside the 2014 search interval.")
+            st.stop()
 
         frame = pd.DataFrame(rows)
         curve = alt.Chart(frame).mark_line(strokeWidth=2).encode(
@@ -423,10 +516,18 @@ def main() -> None:
                             legend=alt.Legend(orient="top")),
             tooltip=[x_title, "Tissue", alt.Tooltip(f"{dose_axis}:Q", format=".2f")],
         )
-        marker = alt.Chart(pd.DataFrame({x_title: [x_current]})).mark_rule(
-            strokeDash=[4, 4], color="grey"
-        ).encode(x=f"{x_title}:Q")
+        # Mark the schedule entered on the curve itself. A bare rule layer would
+        # carry no y value, leaving Vega to resolve the shared y scale from an
+        # empty extent and emit an infinite domain.
+        nearest = frame.iloc[(frame[x_title] - x_current).abs().argsort()[:2]]
+        marker = alt.Chart(nearest).mark_point(
+            size=110, filled=True, opacity=0.9
+        ).encode(
+            x=f"{x_title}:Q", y=f"{dose_axis}:Q", color=alt.Color("Tissue:N", title=None),
+            tooltip=[x_title, "Tissue", alt.Tooltip(f"{dose_axis}:Q", format=".2f")],
+        )
         st.altair_chart((curve + marker).properties(height=340), use_container_width=True)
+        st.caption(f"The filled points mark the schedule entered ({x_current:g}).")
 
     with window_tab:
         st.markdown(
@@ -566,7 +667,7 @@ def main() -> None:
             "proliferation with a kick-off time, and treatment gaps. A ten-day "
             "interruption is worth about 12 Gy EQD2 on a fast-proliferating tumour; "
             "calculators that take only dose and fraction number cannot see that.\n"
-            "- **Up to three successive courses**, each with its own fraction size and "
+            "- **Any number of successive courses**, each with its own fraction size and "
             "its own preceding gap, accumulated correctly — which is what a "
             "re-irradiation question actually needs.\n"
             "- **Two fractions a day**, with Thames' incomplete-repair correction.\n"

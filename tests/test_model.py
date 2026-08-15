@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from lqlequiv import Course, Options, Prescription, TCPModel, compute, load_library
+from lqlequiv.model import MAX_COURSES
 from lqlequiv.model import (
     normal_tissue_complication_probability,
     radiation_induced_cancer_risk,
@@ -119,6 +120,51 @@ def test_a_treatment_gap_costs_a_proliferating_tumour_and_no_other(library, gap)
     assert longer.eqd_tumour_total < standard.eqd_tumour_total
 
 
+def test_courses_beyond_the_2014_three_accumulate_the_same_way(library):
+    """The 2014 interface had three course slots; the model has no such limit."""
+    organ, tumour = library.organ("Rectum"), library.tumour_site("Prostate")
+    courses = (Course(2.2, 5), Course(6.5, 2, 7), Course(2.0, 10, 14),
+               Course(1.8, 8, 21), Course(3.0, 3, 10))
+    result = compute(organ, tumour, Prescription(courses=courses, reference_dose=2.0))
+
+    assert len(result.courses) == 5
+    assert result.eqd_oar_total == pytest.approx(sum(c.eqd_oar for c in result.courses))
+    assert result.eqd_tumour_total == pytest.approx(
+        sum(c.eqd_tumour for c in result.courses)
+    )
+    # Truncating the plan must give the same answer for the courses that remain.
+    shorter = compute(organ, tumour,
+                      Prescription(courses=courses[:3], reference_dose=2.0))
+    for short, long in zip(shorter.courses, result.courses[:3]):
+        assert short.eqd_oar == pytest.approx(long.eqd_oar)
+        assert short.eqd_tumour == pytest.approx(long.eqd_tumour)
+
+
+def test_a_schedule_beyond_the_2014_search_range_is_flagged(library):
+    """Past 100 reference fractions the legacy answer is a bound, not a solution."""
+    organ, tumour = library.organ("Rectum"), library.tumour_site("Prostate")
+    plan = Prescription(courses=(Course(6.0, 40),), reference_dose=2.0)
+
+    legacy = compute(organ, tumour, plan)
+    assert legacy.saturated
+    assert legacy.eqd_tumour_total == pytest.approx(200.0)
+    # Adding dose does not move a saturated answer, which is the whole problem.
+    more = compute(organ, tumour,
+                   Prescription(courses=(Course(6.0, 60),), reference_dose=2.0))
+    assert more.eqd_tumour_total == pytest.approx(legacy.eqd_tumour_total)
+
+    exact = compute(organ, tumour, plan, Options(legacy_quantisation=False))
+    assert not exact.saturated
+    assert exact.eqd_tumour_total > 200.0
+
+
+def test_ordinary_schedules_are_not_flagged_as_saturated(library):
+    organ, tumour = library.organ("Rectum"), library.tumour_site("Prostate")
+    result = compute(organ, tumour, Prescription(
+        courses=(Course(2.0, 25), Course(0.0, 0.0)), reference_dose=2.0))
+    assert not result.saturated
+
+
 def test_ntcp_is_a_normal_tissue_quantity(library):
     """Complication probability is defined for organs at risk only."""
     organ = library.organ("Rectum")
@@ -216,7 +262,7 @@ def test_invalid_prescriptions_are_rejected():
     with pytest.raises(ValueError):
         Prescription(courses=(Course(-2.0, 10),))
     with pytest.raises(ValueError):
-        Prescription(courses=(Course(2.0, 10),) * 4)
+        Prescription(courses=(Course(2.0, 10),) * (MAX_COURSES + 1))
 
 
 def test_display_mismatches_of_2014_are_recorded(library):
