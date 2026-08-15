@@ -6,7 +6,7 @@ minimum. This package instead solves the objective in closed form and scores
 only the handful of grid points around each root, which is far faster but is
 only legitimate if it lands on the *same* grid point every time.
 
-That is not obvious: repopulation switches on at the kick-off time, which makes
+That is not obvious: proliferation switches on at the kick-off time, which makes
 the tumour objective piecewise linear, so it can approach the target twice and
 its best grid point can sit next to the kink rather than next to a root.
 

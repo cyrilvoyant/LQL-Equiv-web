@@ -483,9 +483,9 @@ def main() -> None:
                 if oar.dprol > 0 and at_edge:
                     st.warning(
                         f"The optimum sits at the edge of the range scanned, and "
-                        f"{oar.name.lower()} carries a repopulation dose of "
+                        f"{oar.name.lower()} carries a proliferation dose of "
                         f"{oar.dprol:g} Gy/day. Protracting treatment then *appears* to "
-                        f"spare the organ at risk, because the model lets it repopulate "
+                        f"spare the organ at risk, because the model lets it proliferate "
                         f"too. That is a property of the model, not of late-responding "
                         f"normal tissue, and this optimum should not be read as a "
                         f"recommendation. Compare fraction sizes within a clinically "
@@ -554,8 +554,8 @@ def main() -> None:
             "so large fractions are not over-penalised. A pure LQ calculator "
             "systematically overstates the effect of stereotactic fraction sizes.\n"
             "- **Overall treatment time is modelled, not ignored.** Accelerated "
-            "repopulation with a kick-off time, and treatment gaps. A ten-day "
-            "interruption is worth about 12 Gy EQD2 on a fast-repopulating tumour; "
+            "proliferation with a kick-off time, and treatment gaps. A ten-day "
+            "interruption is worth about 12 Gy EQD2 on a fast-proliferating tumour; "
             "calculators that take only dose and fraction number cannot see that.\n"
             "- **Up to three successive courses**, each with its own fraction size and "
             "its own preceding gap, accumulated correctly — which is what a "

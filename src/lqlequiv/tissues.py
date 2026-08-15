@@ -28,9 +28,9 @@ class Tissue:
     alpha:
         :math:`\\alpha` coefficient of the linear-quadratic model, in Gy^-1.
     Tk:
-        Kick-off time of accelerated repopulation, in days.
+        Kick-off time of accelerated proliferation, in days.
     Tp:
-        Effective doubling time during repopulation, in days.
+        Effective doubling time during proliferation, in days.
     dt:
         Transition dose at which the linear-quadratic model gives way to the
         linear tail, in gray. Equal to :math:`2\\,\\alpha/\\beta` throughout the
@@ -38,7 +38,7 @@ class Tissue:
     T_half:
         Half-time of sublethal damage repair, in hours.
     dprol:
-        Dose consumed per day by repopulation, in Gy/day. Tabulated for organs
+        Dose consumed per day by proliferation, in Gy/day. Tabulated for organs
         at risk; derived from ``alpha`` and ``Tp`` for tumours.
     m, d50:
         Dose-response parameters. Their meaning differs by tissue type, which is
@@ -69,9 +69,9 @@ class Tissue:
     endpoint: str = ""
     endpoint_fr: str = ""
     dprol: float = 0.0
-    #: Tumours only: repopulation dose given explicitly instead of being derived
+    #: Tumours only: proliferation dose given explicitly instead of being derived
     #: from ``alpha`` and ``Tp``. ``None`` means derive it; ``0.0`` means this
-    #: tumour genuinely does not repopulate.
+    #: tumour genuinely does not proliferate.
     dprol_override: float | None = None
     m: float = 0.0
     d50: float = 0.0

@@ -8,7 +8,7 @@ A Python library and web application computing biologically effective dose (BED)
 equivalent dose in a reference fractionation (EQD2 and others), normal-tissue
 complication probability (NTCP), tumour control probability (TCP) and
 radiation-induced cancer risk, with corrections for incomplete inter-fraction
-repair, accelerated repopulation and treatment protraction.
+repair, accelerated proliferation and treatment protraction.
 
 This is version 3.0, a complete reimplementation of the 2014 MATLAB application
 [`cyrilvoyant/LQ-Equiv`](https://github.com/cyrilvoyant/LQ-Equiv), validated case
@@ -29,7 +29,7 @@ courses separated by gaps, it computes:
 | Quantity | Model |
 | --- | --- |
 | Biologically effective dose | Linear-quadratic with the linear tail of Astrahan above the transition dose |
-| Repopulation | Dale, with a kick-off time and a daily dose consumption |
+| Proliferation | Dale, with a kick-off time and a daily dose consumption |
 | Two fractions a day | Thames' incomplete-repair correction, six-hour interval |
 | Equivalent dose | Dose in the chosen reference fractionation giving the same BED |
 | Complication probability | Lyman probit, organs at risk only |
@@ -38,7 +38,7 @@ courses separated by gaps, it computes:
 
 The shipped radiobiological library holds **34 organs at risk** and **20 tumour
 sites** — the 19 transcribed from the 2014 release, plus a standard tumour with
-repopulation switched off, which gives a reference case where equivalent dose
+proliferation switched off, which gives a reference case where equivalent dose
 depends on fractionation alone. Every value's provenance is recorded in
 [`docs/PARAMETERS.md`](docs/PARAMETERS.md).
 
@@ -135,40 +135,40 @@ schedule under consideration. EQD2 is what lets two schedules with different
 fraction sizes be compared. Any reference fraction size can be used here, not
 only 2 Gy.
 
-**Which way does repopulation move the equivalent dose?**
+**Which way does proliferation move the equivalent dose?**
 Both ways, depending on whether the schedule runs longer or shorter than the
-reference schedule it is being matched against. Repopulation penalises *both*
+reference schedule it is being matched against. Proliferation penalises *both*
 sides of the comparison, and the longer side loses more. Against the standard
-tumour, which repopulates at 0.66 Gy/day past a kick-off time of 21 days:
+tumour, which proliferates at 0.66 Gy/day past a kick-off time of 21 days:
 
 *A schedule prolonged by a treatment gap — 25 × 2 Gy, reference 2 Gy:*
 
-| Gap | Standard tumour | Repopulation switched off |
+| Gap | Standard tumour | Proliferation switched off |
 | ---: | ---: | ---: |
 | 0 days | 50.00 Gy | 50.00 Gy |
 | 10 days | **37.48 Gy** | 50.00 Gy |
 | 30 days | 19.20 Gy | 50.00 Gy |
 
-Here repopulation lowers the equivalent dose, and a ten-day interruption costs
-12.5 Gy EQD2 — more than six 2 Gy fractions. With repopulation switched off a gap
+Here proliferation lowers the equivalent dose, and a ten-day interruption costs
+12.5 Gy EQD2 — more than six 2 Gy fractions. With proliferation switched off a gap
 costs nothing at all. Note the zero-gap row: both tumours give exactly 50 Gy even
 though their BEDs differ (50.76 against 60.00), because the schedule *is* the
-reference schedule and the repopulation loss cancels on both sides.
+reference schedule and the proliferation loss cancels on both sides.
 
 *A schedule shortened by hypofractionation — 20 × 3 Gy, reference 2 Gy:*
 
 | | BED | EQD2 | equivalent reference schedule |
 | --- | ---: | ---: | --- |
 | Standard tumour | 73.38 | **80.66** | 40.33 fractions, 56.5 days |
-| Repopulation switched off | 78.00 | 65.00 | 32.50 fractions, 45.5 days |
+| Proliferation switched off | 78.00 | 65.00 | 32.50 fractions, 45.5 days |
 
 Here it goes the other way: the 20-fraction schedule runs 28 days and loses
 0.66 × 7 ≈ 4.6 Gy, while the reference schedule matched to it runs 56.5 days and
 loses 0.66 × 35.5 ≈ 23 Gy — five times as much — so more reference dose is needed
 and the equivalent dose rises. This is the familiar result that short accelerated
-schedules are favoured in fast-repopulating tumours.
+schedules are favoured in fast-proliferating tumours.
 
-Isolating this effect is what the added non-repopulating tumour is for.
+Isolating this effect is what the added non-proliferating tumour is for.
 
 **Can this be used to treat a patient?**
 No. It is for research and education only, it is not a medical device, and it
@@ -186,7 +186,7 @@ radiobiological library, reimplemented in Python and validated against it.
 
 **Which model is used for each endpoint?**
 BED and equivalent dose use the linear-quadratic-linear model of Astrahan with
-the repopulation term of Dale and, for two fractions a day, the incomplete-repair
+the proliferation term of Dale and, for two fractions a day, the incomplete-repair
 correction of Thames. Complication probability uses the Lyman probit. Tumour
 control probability uses a logistic or Poisson sigmoid in γ50.
 

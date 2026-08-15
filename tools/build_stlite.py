@@ -86,7 +86,7 @@ def _structured_data() -> str:
                     "Normal-tissue complication probability (NTCP), Lyman probit model",
                     "Tumour control probability (TCP)",
                     "Radiation-induced cancer risk",
-                    "Accelerated repopulation and incomplete inter-fraction repair",
+                    "Accelerated proliferation and incomplete inter-fraction repair",
                     "Up to three successive treatment courses with treatment gaps",
                     "34 organs at risk and 20 tumour sites",
                 ],

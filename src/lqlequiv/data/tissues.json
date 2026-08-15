@@ -905,8 +905,8 @@
   },
   {
    "index": 21,
-   "name": "Standard tumour, no repopulation",
-   "name_fr": "Tumeur standard, sans proliferation",
+   "name": "Standard tumour, no proliferation",
+   "name_fr": "Tumeur standard, sans prolifération",
    "endpoint": "Sterilisation",
    "endpoint_fr": "Stérilisation",
    "alpha_beta": 10.0,
@@ -918,7 +918,7 @@
    "m": 0.8,
    "d50": 46.9,
    "dprol_override": 0.0,
-   "source": "Added in 3.0, not part of the 2014 release. Identical to the standard tumour except that repopulation is switched off, giving a reference case in which equivalent dose depends on fractionation alone."
+   "source": "Added in 3.0, not part of the 2014 release. Identical to the standard tumour except that proliferation is switched off, giving a reference case in which equivalent dose depends on fractionation alone."
   }
  ],
  "display_mismatches_2014": [

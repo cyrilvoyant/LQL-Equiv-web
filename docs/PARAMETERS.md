@@ -29,11 +29,11 @@ The parameters as published are described in:
 | --- | --- | --- |
 | `alpha_beta` | α/β ratio, Gy | same |
 | `alpha` | α of the linear-quadratic model, Gy⁻¹ | same |
-| `Tk` | repopulation kick-off time, days | same |
-| `Tp` | effective doubling time during repopulation, days | same |
+| `Tk` | proliferation kick-off time, days | same |
+| `Tp` | effective doubling time during proliferation, days | same |
 | `dt` | transition dose to the linear tail, Gy — equal to 2 α/β throughout | same |
 | `T_half` | sublethal damage repair half-time, hours | same |
-| `dprol` | dose consumed per day by repopulation, Gy/day — tabulated | derived as 0.693 / (α · Tp), except two sites where it is fixed at 0.3 |
+| `dprol` | dose consumed per day by proliferation, Gy/day — tabulated | derived as 0.693 / (α · Tp), except two sites where it is fixed at 0.3 |
 | `m` | **Lyman probit slope** (0.075 to 0.27) | **γ50, normalised slope of the control curve** (0.28 to 3.38) |
 | `d50` | dose giving 50 % complication, Gy | TCD50, dose giving 50 % control, Gy |
 | `puns`, `alpha2` | radiation-induced cancer risk coefficients | not used |

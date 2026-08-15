@@ -86,7 +86,7 @@ expression evaluation bit for bit, which is not a defensible engineering goal.
 The original scans 20 001 grid points; this implementation solves the objective
 in closed form and scores only the grid points around each root. That shortcut
 is legitimate only if it lands on the same point every time — which is not
-obvious, because repopulation switching on at the kick-off time makes the tumour
+obvious, because proliferation switching on at the kick-off time makes the tumour
 objective piecewise linear, so it can approach the target twice and its best
 grid point can sit next to the kink rather than next to a root.
 

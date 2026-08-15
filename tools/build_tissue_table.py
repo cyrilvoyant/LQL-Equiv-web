@@ -93,28 +93,28 @@ TUMOUR_FIELDS = {
 DISPLAY_KEY = {"a/b": "alpha_beta", "a": "alpha", "T1/2": "T_half",
                "Tk": "Tk", "Tp": "Tp", "Dprol": "dprol", "Dt": "dt"}
 
-# The 2014 source derives the tumour repopulation dose from alpha and Tp, except
+# The 2014 source derives the tumour proliferation dose from alpha and Tp, except
 # for two sites where it hard-codes 0.3 Gy/day by drop-down index. Tabulating it
 # here keeps that behaviour without magic indices in the model.
 TUMOUR_DPROL_OVERRIDE = {6: 0.3, 15: 0.3}
 
 # Entries added in 3.0. The 2014 library ships two standard organs at risk, one
-# acute and one late, but a single standard tumour, and that one repopulates
+# acute and one late, but a single standard tumour, and that one proliferates
 # fast (0.66 Gy/day from a three-day doubling time). There is therefore no
 # neutral tumour against which to separate the effect of fractionation from the
 # effect of overall treatment time. This adds one, by copying the standard
-# tumour and switching repopulation off.
+# tumour and switching proliferation off.
 EXTENSIONS = [
     {
         "kind": "tumour",
         "index": 21,
         "copy_of": 20,
-        "name": "Standard tumour, no repopulation",
-        "name_fr": "Tumeur standard, sans proliferation",
+        "name": "Standard tumour, no proliferation",
+        "name_fr": "Tumeur standard, sans prolifération",
         "dprol_override": 0.0,
         "source": (
             "Added in 3.0, not part of the 2014 release. Identical to the standard "
-            "tumour except that repopulation is switched off, giving a reference "
+            "tumour except that proliferation is switched off, giving a reference "
             "case in which equivalent dose depends on fractionation alone."
         ),
     },

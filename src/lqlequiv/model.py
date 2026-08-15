@@ -4,7 +4,7 @@ This is a faithful port of the calculation performed by ``pushbutton4_Callback``
 in the 2014 MATLAB application (``cyrilvoyant/LQ-Equiv``), covering:
 
 * biologically effective dose (BED) with the linear-quadratic-linear tail of
-  Astrahan, the repopulation term of Dale, and the incomplete-repair correction
+  Astrahan, the proliferation term of Dale, and the incomplete-repair correction
   of Thames for two fractions a day;
 * the equivalent dose in a reference fractionation (EQD, usually EQD2), for both
   the organ at risk and the tumour, over up to three successive courses;
@@ -35,7 +35,7 @@ from .tissues import Library, Tissue, load_library
 #: correction, in hours. Hard-coded in the 2014 source.
 BIFRACTION_INTERVAL_HOURS = 6.0
 
-#: Tumour drop-down indices whose repopulation dose is tabulated rather than
+#: Tumour drop-down indices whose proliferation dose is tabulated rather than
 #: derived from ``alpha`` and ``Tp``.
 _FIXED_DPROL_TUMOURS = (6, 15)
 
@@ -171,7 +171,7 @@ def _quantise(value: float, bounds: tuple[float, float], options: Options) -> fl
 
 
 def _lql_dose_term(dose: float, tissue: Tissue, gamma: float, repair: float) -> float:
-    """BED contribution of a single fraction, before repopulation.
+    """BED contribution of a single fraction, before proliferation.
 
     Below the transition dose this is the linear-quadratic form; above it, the
     linear tail of Astrahan. The incomplete-repair correction only applies to
@@ -190,7 +190,7 @@ def _lql_dose_term(dose: float, tissue: Tissue, gamma: float, repair: float) -> 
 def _oar_course_bed(course: Course, tissue: Tissue, gamma: float, repair: float) -> float:
     """BED of one course for an organ at risk.
 
-    The organ-at-risk branch of the 2014 code applies repopulation as a flat
+    The organ-at-risk branch of the 2014 code applies proliferation as a flat
     ``n * 7/5 * dprol``: it ignores both the kick-off time ``Tk`` and any gap.
     """
     per_fraction = _lql_dose_term(course.dose_per_fraction, tissue, gamma, repair)
@@ -252,11 +252,11 @@ def _oar_equivalent_fractions(
 
 
 def _tumour_dprol(tissue: Tissue) -> float:
-    """Dose consumed per day by tumour repopulation, in Gy/day.
+    """Dose consumed per day by tumour proliferation, in Gy/day.
 
     Normally derived from the doubling time, but tabulated for the two sites the
     2014 source special-cased and for any entry that declares it explicitly --
-    including one that declares no repopulation at all.
+    including one that declares no proliferation at all.
     """
     if tissue.dprol_override is not None:
         return tissue.dprol_override
@@ -265,10 +265,10 @@ def _tumour_dprol(tissue: Tissue) -> float:
     return 0.693 / (tissue.alpha * tissue.Tp)
 
 
-def _repopulation_loss(
+def _proliferation_loss(
     days_before: float, days_of_course: float, tissue: Tissue, dprol: float
 ) -> float:
-    """Dose lost to repopulation during one course, given what preceded it."""
+    """Dose lost to proliferation during one course, given what preceded it."""
     already = (tissue.Tk - days_before) * _heaviside(tissue.Tk - days_before)
     return (
         _heaviside(days_before + days_of_course - tissue.Tk)
@@ -287,7 +287,7 @@ def _tumour_course_bed(
     dprol: float,
 ) -> float:
     per_fraction = _lql_dose_term(course.dose_per_fraction, tissue, gamma, repair)
-    loss = _repopulation_loss(days_before, days_of_course, tissue, dprol)
+    loss = _proliferation_loss(days_before, days_of_course, tissue, dprol)
     return course.n_fractions * per_fraction - loss
 
 
@@ -298,7 +298,7 @@ def _tumour_reference_bed(
     """BED of ``n`` reference fractions delivered after ``days_before`` days."""
     days = n * 7.0 / 5.0
     per_fraction = _lql_dose_term(reference_dose, tissue, gamma, 0.0)
-    return n * per_fraction - _repopulation_loss(days_before, days, tissue, dprol)
+    return n * per_fraction - _proliferation_loss(days_before, days, tissue, dprol)
 
 
 def _tumour_equivalent_fractions(
@@ -308,7 +308,7 @@ def _tumour_equivalent_fractions(
     """Number of reference fractions matching ``bed`` for the tumour.
 
     Unlike the organ-at-risk objective, this one is only *piecewise* linear:
-    repopulation switches on when the cumulative overall time crosses the
+    proliferation switches on when the cumulative overall time crosses the
     kick-off time ``Tk``, putting a kink at ``n = (Tk - days_before) * 5/7``.
     Both branches are solved in closed form and the best candidate is kept,
     which reproduces what the 2014 grid search converges to, including when no
@@ -320,10 +320,10 @@ def _tumour_equivalent_fractions(
     low, high = _TUMOUR_BOUNDS
 
     roots: list[float] = [kink]
-    # Before the kink no repopulation applies.
+    # Before the kink no proliferation applies.
     if slope != 0.0:
         roots.append(bed / slope)
-    # After it, the slope is reduced by the daily repopulation dose, so the
+    # After it, the slope is reduced by the daily proliferation dose, so the
     # objective can cross the target a second time.
     tail_slope = slope - dprol * 7.0 / 5.0
     if tail_slope != 0.0:
@@ -342,7 +342,7 @@ def _tumour_equivalent_fractions(
     candidates = {lowest, highest}
     for root in roots:
         exact = root / _GRID_STEP
-        # Repopulation switches on across the kink, so the objective is
+        # Proliferation switches on across the kink, so the objective is
         # discontinuous in slope there and the best grid point can be the
         # neighbour rather than the bracketing pair: widen by one either way.
         for offset in (-2, -1, 0, 1, 2):
@@ -474,7 +474,7 @@ def compute(
     results: list[CourseResult] = []
     eqd_oar_running = 0.0
     eqd_tum_running = 0.0
-    # Two distinct running times feed the tumour repopulation term, and they are
+    # Two distinct running times feed the tumour proliferation term, and they are
     # not interchangeable: the delivered course is scored against the calendar
     # time actually elapsed, whereas the reference schedule it is being matched
     # to is scored against the calendar time its own equivalent fractions span.
@@ -504,7 +504,7 @@ def compute(
 
         # --- tumour --------------------------------------------------------
         # An empty course still spans calendar time, and the 2014 code scores its
-        # repopulation loss into the reported BED; only the equivalent dose and
+        # proliferation loss into the reported BED; only the equivalent dose and
         # the time carried into the next course are forced back to zero.
         days_tum_course = (course.n_fractions + course.gap_days) * 7.0 / 5.0
         bed_tum = _tumour_course_bed(

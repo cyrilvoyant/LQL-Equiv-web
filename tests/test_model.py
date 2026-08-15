@@ -35,16 +35,16 @@ def test_added_entries_declare_their_origin(library):
             assert tissue.source, f"{tissue.name} must say where it comes from"
 
 
-def test_standard_tumour_without_repopulation_isolates_fractionation(library):
+def test_standard_tumour_without_proliferation_isolates_fractionation(library):
     """The added reference tumour removes the overall-time term entirely.
 
-    Against the standard tumour, which repopulates at 0.66 Gy/day, the two
+    Against the standard tumour, which proliferates at 0.66 Gy/day, the two
     differ only by the time effect; in the reference fractionation, where there
     is no time effect to speak of, they agree.
     """
     organ = library.organ("Rectum")
     standard = library.tumour_site("Standard tumour")
-    neutral = library.tumour_site("Standard tumour, no repopulation")
+    neutral = library.tumour_site("Standard tumour, no proliferation")
 
     reference = Prescription(courses=(Course(2.0, 30),), reference_dose=2.0)
     assert compute(organ, standard, reference).eqd_tumour_total == pytest.approx(
@@ -55,7 +55,7 @@ def test_standard_tumour_without_repopulation_isolates_fractionation(library):
     with_time = compute(organ, standard, hypofractionated).eqd_tumour_total
     without_time = compute(organ, neutral, hypofractionated).eqd_tumour_total
     assert with_time > without_time
-    # A gap costs the repopulating tumour dose and the neutral one nothing.
+    # A gap costs the proliferating tumour dose and the neutral one nothing.
     delayed = Prescription(courses=(Course(3.0, 20, 14),), reference_dose=2.0)
     assert compute(organ, neutral, delayed).eqd_tumour_total == pytest.approx(without_time)
     assert compute(organ, standard, delayed).eqd_tumour_total < with_time
@@ -83,8 +83,8 @@ def test_hypofractionation_raises_late_tissue_dose(library):
     assert hypofractionated.eqd_oar_total > conventional.eqd_oar_total
 
 
-def test_repopulation_cancels_when_the_schedule_is_the_reference(library):
-    """At the reference fraction size and no gap, repopulation cancels exactly.
+def test_proliferation_cancels_when_the_schedule_is_the_reference(library):
+    """At the reference fraction size and no gap, proliferation cancels exactly.
 
     Both sides of the comparison then run for the same time and lose the same
     dose, so the equivalent dose is the physical dose whatever the tumour --
@@ -92,25 +92,25 @@ def test_repopulation_cancels_when_the_schedule_is_the_reference(library):
     """
     organ = library.organ("Rectum")
     standard = library.tumour_site("Standard tumour")
-    neutral = library.tumour_site("Standard tumour, no repopulation")
+    neutral = library.tumour_site("Standard tumour, no proliferation")
     plan = Prescription(courses=(Course(2.0, 25),), reference_dose=2.0)
 
-    with_repopulation = compute(organ, standard, plan)
+    with_proliferation = compute(organ, standard, plan)
     without = compute(organ, neutral, plan)
-    assert with_repopulation.eqd_tumour_total == pytest.approx(50.0, abs=0.02)
+    assert with_proliferation.eqd_tumour_total == pytest.approx(50.0, abs=0.02)
     assert without.eqd_tumour_total == pytest.approx(50.0, abs=0.02)
     # The BEDs are not equal, only the equivalent doses.
-    assert with_repopulation.courses[0].bed_tumour < without.courses[0].bed_tumour
+    assert with_proliferation.courses[0].bed_tumour < without.courses[0].bed_tumour
 
 
 @pytest.mark.parametrize("gap", [5, 10, 20, 30])
-def test_a_treatment_gap_costs_a_repopulating_tumour_and_no_other(library, gap):
-    """A gap erodes the equivalent dose only if the tumour repopulates."""
+def test_a_treatment_gap_costs_a_proliferating_tumour_and_no_other(library, gap):
+    """A gap erodes the equivalent dose only if the tumour proliferates."""
     organ = library.organ("Rectum")
     plan = Prescription(courses=(Course(2.0, 25, gap),), reference_dose=2.0)
 
     standard = compute(organ, library.tumour_site("Standard tumour"), plan)
-    neutral = compute(organ, library.tumour_site("Standard tumour, no repopulation"), plan)
+    neutral = compute(organ, library.tumour_site("Standard tumour, no proliferation"), plan)
     assert neutral.eqd_tumour_total == pytest.approx(50.0, abs=0.02)
     assert standard.eqd_tumour_total < 50.0
     # Longer interruptions cost more.
