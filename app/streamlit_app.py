@@ -66,39 +66,45 @@ REFERENCES = [
      "https://doi.org/10.5281/zenodo.16739883"),
 ]
 
-# A dose-response sigmoid rising through a fraction grid: the two things the
-# software puts together. Drawn inline so the page stays self-contained.
+# A DNA double helix struck by an ionising track: what the model is ultimately
+# about. Icon only -- the wordmark and the tagline are HTML, so that they wrap
+# instead of being clipped by the drawing's own box.
 LOGO = """
-<svg viewBox="0 0 190 54" role="img" aria-label="LQL-Equiv" width="190" height="54">
+<svg viewBox="0 0 58 40" role="img" aria-label="" focusable="false"
+     width="58" height="40">
   <defs>
     <linearGradient id="lqlg" x1="0" y1="1" x2="1" y2="0">
       <stop offset="0%" stop-color="#3b6ea5"/>
       <stop offset="100%" stop-color="#4aa3a3"/>
     </linearGradient>
   </defs>
-  <g opacity="0.30" stroke="currentColor" stroke-width="0.7">
-    <line x1="6" y1="46" x2="52" y2="46"/><line x1="6" y1="8" x2="6" y2="46"/>
-    <line x1="15" y1="44" x2="15" y2="46"/><line x1="24" y1="44" x2="24" y2="46"/>
-    <line x1="33" y1="44" x2="33" y2="46"/><line x1="42" y1="44" x2="42" y2="46"/>
+  <g fill="none" stroke="url(#lqlg)" stroke-width="2.4" stroke-linecap="round">
+    <path d="M4 20 C 12 6, 24 6, 32 20 C 40 34, 48 34, 52 20"/>
+    <path d="M4 20 C 12 34, 24 34, 32 20 C 40 6, 48 6, 52 20"/>
   </g>
-  <path d="M6 45 C 20 45, 24 40, 29 27 C 34 14, 38 9, 52 9"
-        fill="none" stroke="url(#lqlg)" stroke-width="3.4" stroke-linecap="round"/>
-  <circle cx="29" cy="27" r="3.6" fill="url(#lqlg)"/>
-  <text x="64" y="27" font-family="ui-sans-serif, system-ui, sans-serif"
-        font-size="21" font-weight="640" fill="currentColor"
-        letter-spacing="-0.4">LQL-Equiv</text>
-  <text x="65" y="42" font-family="ui-sans-serif, system-ui, sans-serif"
-        font-size="10.5" fill="currentColor" opacity="0.62"
-        letter-spacing="0.3">equivalent doses in radiotherapy</text>
+  <g stroke="url(#lqlg)" stroke-width="1.5" stroke-linecap="round" opacity="0.62">
+    <line x1="11.5" y1="11.5" x2="11.5" y2="28.5"/>
+    <line x1="18" y1="9.5" x2="18" y2="30.5"/>
+    <line x1="24.5" y1="11.5" x2="24.5" y2="28.5"/>
+    <line x1="35.5" y1="11.5" x2="35.5" y2="28.5"/>
+  </g>
+  <path d="M56 2 L48.5 9 L52.5 11 L45 18" fill="none" stroke="#d1495b"
+        stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="43.5" cy="19.5" r="2.6" fill="#d1495b"/>
 </svg>
 """
 
 STYLE = """
 <style>
-  .lql-head {display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+  .lql-head {display: flex; align-items: center; gap: 0.85rem; flex-wrap: wrap;
              margin-bottom: 0.2rem;}
   .lql-head svg {flex: none;}
-  .lql-byline {font-size: 0.85rem; opacity: 0.75;}
+  .lql-name {min-width: 0;}
+  .lql-word {font-size: 1.6rem; font-weight: 650; letter-spacing: -0.02em;
+             line-height: 1.15;}
+  .lql-ver {font-size: 1rem; font-weight: 500; opacity: 0.55;
+            vertical-align: 0.28em; letter-spacing: 0;}
+  .lql-tag {font-size: 0.86rem; opacity: 0.72; line-height: 1.45;}
   .lql-pitch {font-size: 0.9rem; line-height: 1.6;}
   .block-container {padding-top: 2.4rem; max-width: 1150px;}
   h1 {font-size: 1.65rem !important; font-weight: 600; letter-spacing: -0.01em;}
@@ -207,8 +213,11 @@ def main() -> None:
 
     st.markdown(
         f"<div class='lql-head'>{LOGO}"
-        "<div><div style='font-weight:600;font-size:1.05rem;'>Version 3.0</div>"
-        "<div class='lql-byline'>Cyril Voyant and Daniel Julian</div></div></div>",
+        "<div class='lql-name'>"
+        "<div class='lql-word'>LQL-Equiv <span class='lql-ver'>3.0</span></div>"
+        "<div class='lql-tag'>Equivalent doses in radiotherapy &middot; "
+        "Cyril Voyant and Daniel Julian</div>"
+        "</div></div>",
         unsafe_allow_html=True,
     )
     st.markdown(
