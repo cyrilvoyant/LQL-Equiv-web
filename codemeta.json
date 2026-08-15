@@ -1,0 +1,103 @@
+{
+  "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
+  "@type": "SoftwareSourceCode",
+  "identifier": "LQL-Equiv-web",
+  "name": "LQL-Equiv",
+  "alternateName": "LQL-Equiv-web",
+  "description": "Computes biologically equivalent doses in external-beam radiotherapy under the linear-quadratic-linear (LQL) model: biologically effective dose (BED), equivalent dose in a reference fractionation (EQD2), normal-tissue complication probability (NTCP), tumour control probability (TCP) and radiation-induced cancer risk, with corrections for incomplete inter-fraction repair, accelerated repopulation and treatment protraction. Python library and browser application, validated case by case against the 2014 MATLAB release. For research and education only; not a medical device.",
+  "version": "3.0.0",
+  "softwareVersion": "3.0.0",
+  "dateCreated": "2026-08-15",
+  "datePublished": "2026-08-15",
+  "codeRepository": "https://github.com/cyrilvoyant/LQL-Equiv-web",
+  "url": "https://cyrilvoyant.github.io/LQL-Equiv-web/",
+  "license": "https://spdx.org/licenses/MIT",
+  "programmingLanguage": [
+    {"@type": "ComputerLanguage", "name": "Python", "version": ">=3.10"}
+  ],
+  "runtimePlatform": ["Python 3", "Web browser (WebAssembly)"],
+  "operatingSystem": ["Linux", "macOS", "Windows", "Any web browser"],
+  "applicationCategory": "Medical physics",
+  "developmentStatus": "active",
+  "isAccessibleForFree": true,
+  "keywords": [
+    "radiotherapy",
+    "biologically effective dose",
+    "BED",
+    "EQD2",
+    "equivalent dose",
+    "linear-quadratic-linear model",
+    "LQL",
+    "NTCP",
+    "TCP",
+    "radiobiology",
+    "medical physics",
+    "fractionation",
+    "hypofractionation",
+    "radiation oncology",
+    "open science"
+  ],
+  "author": [
+    {
+      "@type": "Person",
+      "givenName": "Cyril",
+      "familyName": "Voyant",
+      "@id": "https://orcid.org/0000-0003-0242-7377",
+      "url": "https://person.cyrilvoyant.com",
+      "affiliation": {
+        "@type": "Organization",
+        "name": "Universite Nice Sophia Antipolis, France"
+      }
+    },
+    {
+      "@type": "Person",
+      "givenName": "Daniel",
+      "familyName": "Julian",
+      "affiliation": {
+        "@type": "Organization",
+        "name": "Centre de Cancerologie du Grand Montpellier, France"
+      }
+    }
+  ],
+  "maintainer": {
+    "@type": "Person",
+    "givenName": "Cyril",
+    "familyName": "Voyant",
+    "@id": "https://orcid.org/0000-0003-0242-7377"
+  },
+  "softwareRequirements": [
+    "Python >= 3.10 (core has no third-party dependency)",
+    "streamlit >= 1.50 and pandas >= 2.0 for the web interface"
+  ],
+  "referencePublication": {
+    "@type": "ScholarlyArticle",
+    "name": "Biological effects and equivalent doses in radiotherapy: A software solution",
+    "identifier": "https://doi.org/10.1016/j.rpor.2013.08.004",
+    "datePublished": "2014"
+  },
+  "citation": [
+    {
+      "@type": "ScholarlyArticle",
+      "name": "A short synthesis concerning biological effects and equivalent doses in radiotherapy",
+      "identifier": "https://doi.org/10.29328/journal.jro.1001005",
+      "datePublished": "2017"
+    },
+    {
+      "@type": "ScholarlyArticle",
+      "name": "Improving clinical decision-making in radiotherapy: a comparative analysis of linear-quadratic (LQ) and linear-quadratic-linear (LQL) dose models",
+      "identifier": "https://doi.org/10.1016/j.clon.2025.103893",
+      "datePublished": "2025"
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "name": "LQ-Equiv, the original MATLAB application",
+      "identifier": "https://doi.org/10.5281/zenodo.16739883",
+      "codeRepository": "https://github.com/cyrilvoyant/LQ-Equiv"
+    }
+  ],
+  "relatedLink": [
+    "https://www.cyrilvoyant.com",
+    "https://github.com/cyrilvoyant/LQ-Equiv"
+  ],
+  "readme": "https://github.com/cyrilvoyant/LQL-Equiv-web/blob/main/README.md"
+}

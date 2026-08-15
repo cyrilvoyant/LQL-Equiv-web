@@ -1,0 +1,75 @@
+{
+  "title": "LQL-Equiv-web: a validated Python and web implementation of biologically equivalent dose calculation in radiotherapy",
+  "upload_type": "software",
+  "license": "MIT",
+  "access_right": "open",
+  "version": "3.0.0",
+  "language": "eng",
+  "description": "<p>LQL-Equiv computes biologically equivalent doses in external-beam radiotherapy under the linear-quadratic-linear (LQL) model: biologically effective dose (BED), equivalent dose in a reference fractionation (EQD2), normal-tissue complication probability (NTCP), tumour control probability (TCP) and radiation-induced cancer risk, with corrections for incomplete inter-fraction repair, accelerated repopulation and treatment protraction.</p><p>It is the Python and browser-based successor to the 2014 MATLAB application (Zenodo 10.5281/zenodo.16739883), reimplemented from the original source and validated against it over 4438 treatment schedules: 69125 of 69131 compared values agree at the original's output precision. The search method that replaces the original exhaustive grid scan is separately proved equivalent to it over all 10554 searches.</p><p>Version 3.0 adds tumour control probability, computed from dose-response parameters the 2014 release loaded but never used, and documents four defects found in that release.</p><p><strong>For research and education only. Not intended for clinical use. This software is not a medical device.</strong></p>",
+  "creators": [
+    {
+      "name": "Voyant, Cyril",
+      "affiliation": "Universite Nice Sophia Antipolis, France",
+      "orcid": "0000-0003-0242-7377"
+    },
+    {
+      "name": "Julian, Daniel",
+      "affiliation": "Centre de Cancerologie du Grand Montpellier, France"
+    }
+  ],
+  "keywords": [
+    "radiotherapy",
+    "biologically effective dose",
+    "BED",
+    "EQD2",
+    "equivalent dose",
+    "linear-quadratic-linear model",
+    "NTCP",
+    "TCP",
+    "radiobiology",
+    "medical physics",
+    "fractionation",
+    "hypofractionation",
+    "radiation oncology",
+    "Python",
+    "open science"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "10.1016/j.rpor.2013.08.004",
+      "relation": "isSupplementTo",
+      "resource_type": "publication-article",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "10.29328/journal.jro.1001005",
+      "relation": "isDocumentedBy",
+      "resource_type": "publication-article",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "10.1016/j.clon.2025.103893",
+      "relation": "isDocumentedBy",
+      "resource_type": "publication-article",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "10.5281/zenodo.16739883",
+      "relation": "isNewVersionOf",
+      "resource_type": "software",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "https://github.com/cyrilvoyant/LQ-Equiv",
+      "relation": "isDerivedFrom",
+      "resource_type": "software",
+      "scheme": "url"
+    },
+    {
+      "identifier": "https://cyrilvoyant.github.io/LQL-Equiv-web/",
+      "relation": "isIdenticalTo",
+      "resource_type": "software",
+      "scheme": "url"
+    }
+  ]
+}

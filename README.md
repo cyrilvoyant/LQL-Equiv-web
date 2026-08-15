@@ -2,6 +2,8 @@
 
 **Biologically equivalent doses in radiotherapy, under the linear-quadratic-linear model.**
 
+### ▶ [Open the calculator](https://cyrilvoyant.github.io/LQL-Equiv-web/) — free, no installation, runs entirely in your browser
+
 A Python library and web application computing biologically effective dose (BED),
 equivalent dose in a reference fractionation (EQD2 and others), normal-tissue
 complication probability (NTCP), tumour control probability (TCP) and
@@ -34,9 +36,11 @@ courses separated by gaps, it computes:
 | Tumour control probability | Logistic or Poisson sigmoid in γ50 — **new in 3.0** |
 | Radiation-induced cancer risk | Linear-exponential |
 
-The shipped radiobiological library holds **34 organs at risk** and **19 tumour
-sites**, transcribed from the 2014 release. Every value's provenance is recorded
-in [`docs/PARAMETERS.md`](docs/PARAMETERS.md).
+The shipped radiobiological library holds **34 organs at risk** and **20 tumour
+sites** — the 19 transcribed from the 2014 release, plus a standard tumour with
+repopulation switched off, which gives a reference case where equivalent dose
+depends on fractionation alone. Every value's provenance is recorded in
+[`docs/PARAMETERS.md`](docs/PARAMETERS.md).
 
 ## Use it
 
@@ -114,6 +118,42 @@ corrected:
 
 See [`docs/COMPARISON-2014.md`](docs/COMPARISON-2014.md) for the quantified
 comparison and the improvement axes.
+
+## Frequently asked questions
+
+**What is the linear-quadratic-linear model?**
+The linear-quadratic model overestimates cell kill at high dose per fraction. The
+linear-quadratic-linear model of Astrahan replaces the quadratic term by a
+straight line above a transition dose, which makes it usable for the large
+fractions of stereotactic radiotherapy. In this library the transition dose is
+twice the α/β ratio for every tissue.
+
+**What is EQD2, and how does it differ from BED?**
+BED is a model quantity with no direct clinical meaning; EQD2 is the dose which,
+delivered in 2 Gy fractions, would produce the same biological effect as the
+schedule under consideration. EQD2 is what lets two schedules with different
+fraction sizes be compared. Any reference fraction size can be used here, not
+only 2 Gy.
+
+**Can this be used to treat a patient?**
+No. It is for research and education only, it is not a medical device, and it
+must not be used to plan, verify or modify a patient's treatment.
+
+**Is any data sent to a server?**
+No. The web version runs Python inside the browser through WebAssembly. Nothing
+entered into it leaves the machine.
+
+**How is it related to LQ-Equiv?**
+[`cyrilvoyant/LQ-Equiv`](https://github.com/cyrilvoyant/LQ-Equiv) is the 2014
+MATLAB application, distributed as a Windows executable requiring the MATLAB
+Component Runtime. This repository is its successor: same model, same
+radiobiological library, reimplemented in Python and validated against it.
+
+**Which model is used for each endpoint?**
+BED and equivalent dose use the linear-quadratic-linear model of Astrahan with
+the repopulation term of Dale and, for two fractions a day, the incomplete-repair
+correction of Thames. Complication probability uses the Lyman probit. Tumour
+control probability uses a logistic or Poisson sigmoid in γ50.
 
 ## Citation
 

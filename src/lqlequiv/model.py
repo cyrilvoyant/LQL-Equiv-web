@@ -252,9 +252,14 @@ def _oar_equivalent_fractions(
 
 
 def _tumour_dprol(tissue: Tissue) -> float:
-    """Dose consumed per day by tumour repopulation, in Gy/day."""
-    if tissue.index in _FIXED_DPROL_TUMOURS:
-        return 0.3
+    """Dose consumed per day by tumour repopulation, in Gy/day.
+
+    Normally derived from the doubling time, but tabulated for the two sites the
+    2014 source special-cased and for any entry that declares it explicitly --
+    including one that declares no repopulation at all.
+    """
+    if tissue.dprol_override is not None:
+        return tissue.dprol_override
     if tissue.alpha <= 0.0 or tissue.Tp <= 0.0:
         return 0.0
     return 0.693 / (tissue.alpha * tissue.Tp)

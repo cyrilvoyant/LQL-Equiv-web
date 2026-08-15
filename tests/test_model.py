@@ -19,9 +19,46 @@ def library():
 
 
 def test_library_is_complete(library):
+    """The 2014 library, plus whatever 3.0 added on top of it, clearly separated."""
+    original_oar = [t for t in library.oar if t.is_from_2014_release]
+    original_tumour = [t for t in library.tumour if t.is_from_2014_release]
+    assert len(original_oar) == 34
+    assert len(original_tumour) == 19
     assert len(library.oar) == 34
-    assert len(library.tumour) == 19
+    assert len(library.tumour) == 20
     assert library.gamma_over_alpha == 5.0
+
+
+def test_added_entries_declare_their_origin(library):
+    for tissue in library.oar + library.tumour:
+        if not tissue.is_from_2014_release:
+            assert tissue.source, f"{tissue.name} must say where it comes from"
+
+
+def test_standard_tumour_without_repopulation_isolates_fractionation(library):
+    """The added reference tumour removes the overall-time term entirely.
+
+    Against the standard tumour, which repopulates at 0.66 Gy/day, the two
+    differ only by the time effect; in the reference fractionation, where there
+    is no time effect to speak of, they agree.
+    """
+    organ = library.organ("Rectum")
+    standard = library.tumour_site("Standard tumour")
+    neutral = library.tumour_site("Standard tumour, no repopulation")
+
+    reference = Prescription(courses=(Course(2.0, 30),), reference_dose=2.0)
+    assert compute(organ, standard, reference).eqd_tumour_total == pytest.approx(
+        compute(organ, neutral, reference).eqd_tumour_total, abs=0.02
+    )
+
+    hypofractionated = Prescription(courses=(Course(3.0, 20),), reference_dose=2.0)
+    with_time = compute(organ, standard, hypofractionated).eqd_tumour_total
+    without_time = compute(organ, neutral, hypofractionated).eqd_tumour_total
+    assert with_time > without_time
+    # A gap costs the repopulating tumour dose and the neutral one nothing.
+    delayed = Prescription(courses=(Course(3.0, 20, 14),), reference_dose=2.0)
+    assert compute(organ, neutral, delayed).eqd_tumour_total == pytest.approx(without_time)
+    assert compute(organ, standard, delayed).eqd_tumour_total < with_time
 
 
 def test_transition_dose_is_twice_alpha_beta(library):

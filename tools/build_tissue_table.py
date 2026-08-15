@@ -93,6 +93,33 @@ TUMOUR_FIELDS = {
 DISPLAY_KEY = {"a/b": "alpha_beta", "a": "alpha", "T1/2": "T_half",
                "Tk": "Tk", "Tp": "Tp", "Dprol": "dprol", "Dt": "dt"}
 
+# The 2014 source derives the tumour repopulation dose from alpha and Tp, except
+# for two sites where it hard-codes 0.3 Gy/day by drop-down index. Tabulating it
+# here keeps that behaviour without magic indices in the model.
+TUMOUR_DPROL_OVERRIDE = {6: 0.3, 15: 0.3}
+
+# Entries added in 3.0. The 2014 library ships two standard organs at risk, one
+# acute and one late, but a single standard tumour, and that one repopulates
+# fast (0.66 Gy/day from a three-day doubling time). There is therefore no
+# neutral tumour against which to separate the effect of fractionation from the
+# effect of overall treatment time. This adds one, by copying the standard
+# tumour and switching repopulation off.
+EXTENSIONS = [
+    {
+        "kind": "tumour",
+        "index": 21,
+        "copy_of": 20,
+        "name": "Standard tumour, no repopulation",
+        "name_fr": "Tumeur standard, sans proliferation",
+        "dprol_override": 0.0,
+        "source": (
+            "Added in 3.0, not part of the 2014 release. Identical to the standard "
+            "tumour except that repopulation is switched off, giving a reference "
+            "case in which equivalent dose depends on fractionation alone."
+        ),
+    },
+]
+
 
 def _branches(text: str, selector: str) -> dict[int, dict]:
     """Return ``{popup_index: {matlab_name: value}}`` for one ``if/elseif`` chain."""
@@ -154,6 +181,8 @@ def build(source: Path, menus: Path) -> dict:
                     entry[py_name] = raw[matlab_name]
             entry.setdefault("m", 0.0)
             entry.setdefault("d50", 0.0)
+            if kind == "tumour" and index in TUMOUR_DPROL_OVERRIDE:
+                entry["dprol_override"] = TUMOUR_DPROL_OVERRIDE[index]
             table[kind].append(entry)
 
             for py_name, displayed_value in shown[kind].get(index, {}).items():
@@ -164,6 +193,14 @@ def build(source: Path, menus: Path) -> dict:
                         "displayed_2014": displayed_value,
                         "used_2014": entry[py_name],
                     })
+
+    for extension in EXTENSIONS:
+        kind = extension["kind"]
+        base = next(e for e in table[kind] if e["index"] == extension["copy_of"])
+        entry = dict(base)
+        entry.update({k: v for k, v in extension.items()
+                      if k not in ("kind", "copy_of")})
+        table[kind].append(entry)
 
     return {
         "_comment": (

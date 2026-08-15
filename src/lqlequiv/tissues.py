@@ -69,10 +69,17 @@ class Tissue:
     endpoint: str = ""
     endpoint_fr: str = ""
     dprol: float = 0.0
+    #: Tumours only: repopulation dose given explicitly instead of being derived
+    #: from ``alpha`` and ``Tp``. ``None`` means derive it; ``0.0`` means this
+    #: tumour genuinely does not repopulate.
+    dprol_override: float | None = None
     m: float = 0.0
     d50: float = 0.0
     puns: float = 0.0
     alpha2: float = 0.0
+    #: Empty for the 34 organs and 19 tumours of the 2014 release; otherwise a
+    #: note saying where the entry comes from.
+    source: str = ""
 
     @property
     def gamma50(self) -> float:
@@ -97,6 +104,11 @@ class Tissue:
     def has_tcp(self) -> bool:
         """Whether a tumour control probability can be estimated for this tumour."""
         return self.gamma50 > 0.0 and self.tcd50 > 0.0
+
+    @property
+    def is_from_2014_release(self) -> bool:
+        """Whether this entry is one of the originals, unchanged."""
+        return not self.source
 
     @property
     def has_cancer_risk(self) -> bool:

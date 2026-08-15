@@ -689,7 +689,8 @@
    "dt": 4.0,
    "T_half": 1.5,
    "m": 0.0,
-   "d50": 0.0
+   "d50": 0.0,
+   "dprol_override": 0.3
   },
   {
    "index": 7,
@@ -824,7 +825,8 @@
    "dt": 1.2,
    "T_half": 1.5,
    "m": 0.99,
-   "d50": 49.84
+   "d50": 49.84,
+   "dprol_override": 0.3
   },
   {
    "index": 16,
@@ -900,6 +902,23 @@
    "T_half": 1.5,
    "m": 0.8,
    "d50": 46.9
+  },
+  {
+   "index": 21,
+   "name": "Standard tumour, no repopulation",
+   "name_fr": "Tumeur standard, sans proliferation",
+   "endpoint": "Sterilisation",
+   "endpoint_fr": "Stérilisation",
+   "alpha_beta": 10.0,
+   "alpha": 0.35,
+   "Tk": 21.0,
+   "Tp": 3.0,
+   "dt": 20.0,
+   "T_half": 1.5,
+   "m": 0.8,
+   "d50": 46.9,
+   "dprol_override": 0.0,
+   "source": "Added in 3.0, not part of the 2014 release. Identical to the standard tumour except that repopulation is switched off, giving a reference case in which equivalent dose depends on fractionation alone."
   }
  ],
  "display_mismatches_2014": [
