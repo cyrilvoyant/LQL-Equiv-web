@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Radiobiological parameters and their provenance
+    url: https://github.com/cyrilvoyant/LQL-Equiv-web/blob/main/docs/PARAMETERS.md
+    about: Where every tabulated value comes from, before reporting one as wrong.
+  - name: Comparison against the 2014 MATLAB release
+    url: https://github.com/cyrilvoyant/LQL-Equiv-web/blob/main/docs/COMPARISON-2014.md
+    about: Known differences from the original software, quantified.

@@ -1,0 +1,52 @@
+name: Question a result
+description: A computed dose, probability or curve that looks wrong
+labels: ["result"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The most useful report you can send. Give the inputs and what you
+        expected, and the schedule can be replayed exactly.
+  - type: input
+    id: schedule
+    attributes:
+      label: Schedule
+      description: As written on the chart, including any gaps.
+      placeholder: 5 × 2.2 Gy + 2 × 6.5 Gy (after 7 d)
+    validations:
+      required: true
+  - type: input
+    id: tissues
+    attributes:
+      label: Organ at risk and target
+      placeholder: Rectum / Prostate
+    validations:
+      required: true
+  - type: input
+    id: reference
+    attributes:
+      label: Reference dose per fraction
+      placeholder: 2 Gy
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: What the software reported
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected, and why
+      description: A hand calculation, another tool, or published values. Cite it
+        if you can — it is what makes the report actionable.
+    validations:
+      required: true
+  - type: checkboxes
+    id: settings
+    attributes:
+      label: Settings in use
+      options:
+        - label: Two fractions a day
+        - label: α/β sensitivity range shown
