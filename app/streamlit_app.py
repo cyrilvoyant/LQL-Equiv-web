@@ -593,15 +593,15 @@ def main() -> None:
                      alt.Tooltip("Upper:Q", format=".2f")],
         )
         if show_band and spread > 0:
-            # The band layer encodes a different field from the line, so it must
-            # not draw its own axis: two layers claiming the same axis with
-            # different field names leaves the title blank.
-            curve = alt.Chart(frame).mark_area(opacity=0.18).encode(
+            # The band encodes a different field from the line, so whichever layer
+            # comes first decides the shared axis. The line goes first to keep its
+            # title; the band is translucent enough to sit over it.
+            curve = curve + alt.Chart(frame).mark_area(opacity=0.18).encode(
                 x=alt.X(f"{x_title}:Q", title=x_title),
-                y=alt.Y("Lower:Q", axis=None),
+                y=alt.Y("Lower:Q", title=dose_axis),
                 y2=alt.Y2("Upper:Q"),
                 color=colour,
-            ) + curve
+            )
         # Mark the schedule entered on the curve itself. A bare rule layer would
         # carry no y value, leaving Vega to resolve the shared y scale from an
         # empty extent and emit an infinite domain.
@@ -689,11 +689,11 @@ def main() -> None:
                              alt.Tooltip("NTCP (%):Q", format=".2f")],
                 )
                 if show_band and spread > 0:
-                    chart = alt.Chart(frame).mark_area(opacity=0.18).encode(
+                    chart = chart + alt.Chart(frame).mark_area(opacity=0.18).encode(
                         x=alt.X(f"{x_name}:Q", title=x_name),
-                        y=alt.Y("Lower:Q", axis=None, scale=alt.Scale(zero=False)),
+                        y=alt.Y("Lower:Q", title=y_name, scale=alt.Scale(zero=False)),
                         y2=alt.Y2("Upper:Q"),
-                    ) + chart
+                    )
                 highlight = alt.Chart(pd.DataFrame([best])).mark_point(
                     size=180, color="crimson", filled=True
                 ).encode(x=f"{x_name}:Q", y=f"{y_name}:Q")
