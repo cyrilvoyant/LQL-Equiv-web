@@ -23,7 +23,6 @@ if _SRC.exists() and str(_SRC) not in sys.path:
 from lqlequiv import __version__  # noqa: E402
 from lqlequiv.model import (  # noqa: E402
     MAX_COURSES,
-    Convention,
     Course,
     Options,
     Prescription,
@@ -391,15 +390,11 @@ def main() -> None:
         # calendar model contradicted itself past 86 fractions. Reproducing that
         # is a validation concern, exercised by the golden test-suite rather than
         # offered here as a setting.
-        # The corrected convention, likewise: the 2014 source carried three time
-        # conventions its own published equations did not describe, and the
-        # application solves the equations rather than reproducing those. The
-        # legacy convention stays reachable from the library for anyone
-        # recomputing a result published before 2026.
+        # The adjusted time convention, likewise: the 2014 source carried three
+        # calendar conventions its own published equations did not describe, and
+        # the application solves the equations. Options.legacy_2014() stays
+        # reachable from the library for anyone recomputing a pre-2026 result.
         options = Options(
-            legacy_quantisation=False,
-            time_model=TimeModel.STAIRCASE,
-            convention=Convention.CORRECTED,
             tcp_model=TCPModel.LOGISTIC if tcp_choice == "Logistic" else TCPModel.POISSON,
         )
 

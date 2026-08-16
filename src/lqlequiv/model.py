@@ -1,4 +1,4 @@
-﻿"""Biologically equivalent doses under the linear-quadratic-linear model.
+"""Biologically equivalent doses under the linear-quadratic-linear model.
 
 This is a faithful port of the calculation performed by ``pushbutton4_Callback``
 in the 2014 MATLAB application (``cyrilvoyant/LQ-Equiv``), covering:
@@ -536,7 +536,7 @@ def compute(
     tum = tumour if isinstance(tumour, Tissue) else library.tumour_site(tumour)
 
     if options.convention is Convention.ADJUSTED:
-        return _compute_corrected(oar, tum, prescription, options, library, gamma)
+        return _compute_adjusted(oar, tum, prescription, options, library, gamma)
 
     oar_bounds = _OAR_BOUNDS if options.legacy_quantisation else _EXACT_OAR_BOUNDS
     tumour_bounds = (_TUMOUR_BOUNDS if options.legacy_quantisation
@@ -650,7 +650,7 @@ def _sessions(course: Course, bifractionated: bool) -> float:
     return delivered + course.gap_days
 
 
-def _compute_corrected(
+def _compute_adjusted(
     oar: Tissue, tum: Tissue, prescription: Prescription, options: Options,
     library: Library, gamma: float,
 ) -> Result:
