@@ -400,8 +400,10 @@ software computes:
 \begin{itemize}
   \item the biologically effective dose, linear-quadratic below the transition
         dose $d_t = 2\,\alpha/\beta$ and linear above it \cite{astrahan2008};
-  \item the loss to accelerated proliferation, switched on at the kick-off time
-        $T_k$ and accumulated across courses and gaps \cite{dale1989,withers1988};
+  \item the loss to proliferation, accumulated across courses and gaps, under the
+        two models the tissues take: switched on at the kick-off time $T_k$ for
+        the target \cite{dale1989,withers1988}, and accruing from the first day
+        for the organ at risk \cite{vandyk1989};
   \item the incomplete-repair correction for two fractions a day, six hours
         apart \cite{thames1985};
   \item the equivalent dose in any reference fractionation, for the organ at
@@ -570,6 +572,7 @@ unavailable. The fifth, and the only one that changes an answer a department
 would read, is the organ-at-risk equivalent dose of Appendix~\ref{app:2014}.
 
 \subsection{Limitations}
+\label{sec:limitations}
 
 The software is a model comparison tool and not a treatment planning system: it
 knows nothing of dose distribution, volume effects or plan constraints, and
@@ -672,10 +675,10 @@ This is a statement about three models and not about patients; the trial evidenc
 is the arbiter of the clinical question. HYPO-RT-PC randomised 42.7\,Gy in 7
 fractions against 78.0\,Gy in 39 and found non-inferior failure-free survival,
 with early toxicity worse in the hypofractionated arm and late toxicity
-comparable \cite{widmark2019}. PACE-B randomised 36.25\,Gy in 5 fractions and
+comparable \cite{widmark2019hypo}. PACE-B randomised 36.25\,Gy in 5 fractions and
 also found non-inferior biochemical control, but with more grade~2 or worse
 genitourinary toxicity at five years, 26.9\,\% against 18.3\,\%
-\cite{vanas2024}; the two trials therefore agree on control and not on toxicity.
+\cite{vanas2024paceb}; the two trials therefore agree on control and not on toxicity.
 Under the tabulated parameters the software puts the HYPO-RT-PC regimen at
 7~$\times$~6.10\,Gy, that is 42.7\,Gy, and returns 77.60\,Gy EQD2 to the organ
 against 78.00\,Gy for the conventional arm. That is a numerical coincidence of
@@ -695,8 +698,8 @@ target. The fraction count is swept over the integers from 39 down to 4 and the
 fraction size solved so that the target receives 78\,Gy EQD2, so every marker is
 a deliverable schedule and only the organ at risk moves. Bands, 95\,\% interval
 from a log-normal $\pm$30\,\% uncertainty on the organ $\alpha/\beta$, 2000
-draws, seed 20260815. Dotted, the regimens of HYPO-RT-PC \cite{widmark2019} and
-PACE-B \cite{vanas2024}. Illustrative model output, not a clinical prediction:
+draws, seed 20260815. Dotted, the regimens of HYPO-RT-PC \cite{widmark2019hypo} and
+PACE-B \cite{vanas2024paceb}. Illustrative model output, not a clinical prediction:
 the probabilities come from a point equivalent dose with legacy parameters and
 no volume information, and must not be compared with measured toxicity.}
 \label{fig:fractionation}
@@ -835,7 +838,8 @@ fraction. It then reports
 The kick-off time $T_k$ appears nowhere in \eqref{eq:legacy-search}, and that is
 correct: the 2014 paper gives the two tissues two different proliferation models
 and says so. Its equations (3) and (4) apply Dale to the target volume, with a
-kick-off time; its equations (6) and (7) apply Van Dyk to the organ at risk,
+kick-off time; its equations (6) and (7) apply Van Dyk \cite{vandyk1989} to the
+organ at risk,
 where a recovered dose accrues from the first day and, in the paper's words, ``the
 kick-off time is no longer considered''. Version 3.0 keeps that distinction.
 
@@ -952,6 +956,132 @@ A value published before 2026 can be recovered with
 \eqref{eq:legacy-search}--\eqref{eq:legacy-report} together with the three other
 defects of Section~\ref{sec:verification}. It is what the 4438-schedule
 non-regression suite measures; nothing else in the software uses it.
+
+%% ---------------------------------------------------------------------------
+\section{External comparison against the clinical literature}
+\label{app:trials}
+
+The checks of Section~\ref{sec:verification} are internal: they establish that
+the software solves its own equations. This appendix asks a different question.
+Randomised trials have compared fractionations directly, so the schedules a trial
+found non-inferior should come out close in equivalent dose, and those it did not
+should not. Every value below was recomputed with the released version, reference
+dose 2\,Gy per fraction, prostate $\alpha/\beta = 3.1$\,Gy and $d_t = 6.2$\,Gy,
+spinal cord $\alpha/\beta = 2$\,Gy, $d_t = 4$\,Gy and $\gamma/\alpha = 5$.
+
+This is a coherence check and not a clinical validation. Non-inferiority in a
+trial depends on the population, the dosimetry, the volumes, the margins, the
+imaging and the systemic treatment, none of which a fractionation model sees.
+
+\subsection*{Target volume: prostate}
+
+\begin{center}
+\small
+\begin{tabular}{@{}llrrl@{}}
+\toprule
+Trial & Schedule & EQD2 & Against & Trial outcome \\
+\midrule
+HYPO-RT-PC & 42.7\,Gy / 7  & 77.94 & 78.00 & non-inferior \\
+CHHiP      & 60\,Gy / 20   & 72.46 & 74.00 & non-inferior \\
+CHHiP      & 57\,Gy / 19   & 68.79 & 74.00 & not demonstrated \\
+PROFIT     & 60\,Gy / 20   & 72.46 & 78.00 & non-inferior \\
+PACE-B     & 36.25\,Gy / 5 & 73.34 & 76.12, 78.00 & non-inferior \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{HYPO-RT-PC, agreement to within 0.06\,Gy.} The software places
+42.7\,Gy in seven fractions at 77.94\,Gy EQD2 against 78.00\,Gy for the
+conventional arm. The trial found 84\,\% failure-free survival in both arms at
+five years, adjusted hazard ratio 1.002 (95\,\% CI 0.758--1.325)
+\cite{widmark2019hypo}, and 72\,\% against 65\,\% at ten years, adjusted hazard
+ratio 0.84 (95\,\% CI 0.69--1.03) \cite{nilsson2026hypo}. This is the closest
+external agreement obtained, with one caveat: $6.1 < d_t = 6.2$\,Gy, so the case
+exercises the quadratic branch and the time correction and not the linear tail.
+
+\paragraph{CHHiP, the ordering recovered.} 60\,Gy in 20 fractions comes out
+1.54\,Gy below the conventional arm, and the trial reported 90.6\,\% against
+88.3\,\% failure-free at five years, hazard ratio 0.84 (90\,\% CI 0.68--1.03),
+$p_{NI} = 0.0018$. 57\,Gy in 19 fractions comes out 5.21\,Gy below, and there the
+trial reported 85.9\,\%, hazard ratio 1.20 (90\,\% CI 0.99--1.46), $p_{NI} =
+0.48$: non-inferiority was not established \cite{dearnaley2016chhip}. The
+software orders the two hypofractionated arms as the trial did. Most CHHiP
+patients received androgen suppression, which limits what the comparison can
+carry radiobiologically.
+
+\paragraph{PROFIT, a quantitative disagreement.} The same 60\,Gy in 20 fractions
+sits 5.54\,Gy below 78\,Gy in 39, yet PROFIT, without hormone therapy, reported
+85\,\% biochemical or clinical failure-free survival in both arms, hazard ratio
+0.96 (90\,\% CI 0.77--1.20), and demonstrated non-inferiority
+\cite{catton2017profit}. This is not an arithmetic error but a sensitivity to
+$\alpha/\beta$. Under the plain linear-quadratic form with
+$\alpha/\beta = 1.5$\,Gy,
+\[
+\mathrm{EQD2} = 60\,\frac{3 + 1.5}{2 + 1.5} = 77.14\ \mathrm{Gy},
+\]
+within a gray of the conventional arm. A pooled clinical estimate of
+$\alpha/\beta = 1.4$\,Gy (0.9--2.2) has been published for prostate
+\cite{miralbell2012alphabeta}. The tabulated 3.1\,Gy cannot be treated as
+universal.
+
+\paragraph{PACE-B, the linear tail exercised.} At 7.25\,Gy per fraction the dose
+is above $d_t$, so the linear tail applies:
+\[
+\mathrm{BED_{LQL}} = 5\left[6.2\left(1+\tfrac{6.2}{3.1}\right)
+  + 5\,(7.25-6.2)\right] = 119.25\ \mathrm{Gy_{3.1}},
+\qquad
+\frac{119.25}{1 + 2/3.1} = 72.49\ \mathrm{Gy},
+\]
+and 73.34\,Gy once the reference schedule carries its own overall time. That
+places the stereotactic arm 2.78\,Gy below 62\,Gy in 20 and 4.66\,Gy below
+78\,Gy in 39, while the trial reported 95.8\,\% against 94.6\,\% failure-free at
+five years, hazard ratio 0.73 (90\,\% CI 0.48--1.12), $p_{NI} = 0.004$
+\cite{vanas2024paceb}. The linear tail is conservative for this schedule.
+
+\subsection*{Organ at risk: spinal cord}
+
+\paragraph{Stereotactic, 25.3\,Gy in five fractions.} HyTEC associates a maximum
+dose of 25.3\,Gy in five fractions with a 1--5\,\% risk of radiation myelopathy
+\cite{sahgal2021hytec}. At 5.06\,Gy per fraction the software gives
+\[
+\mathrm{BED_{LQL}} = 5\left[4\left(1+\tfrac{4}{2}\right) + 5\,(5.06-4)\right]
+  = 86.50\ \mathrm{Gy_2},
+\qquad
+\mathrm{EQD2} = \frac{86.50}{1 + 2/2} = 43.25\ \mathrm{Gy},
+\]
+against 44.65\,Gy under the plain linear-quadratic form, a difference of
+$-1.40$\,Gy or $-3.1$\,\%. The reported complication probability is 1.45\,\%,
+numerically inside the HyTEC range. That agreement should not be pressed: HyTEC
+defines its constraint on a maximum dose to the cord or thecal sac, and the
+software has no volume information at all.
+
+\paragraph{Conventional, 50\,Gy in 25 fractions.} The equivalent dose is exactly
+50.00\,Gy, as it must be at the reference fraction size, but the reported
+complication probability is 5.13\,\%. QUANTEC puts the risk of myelopathy near
+0.2\,\% at 50\,Gy, 1\,\% at 54\,Gy and 10\,\% at 61\,Gy in conventional
+fractionation \cite{kirkpatrick2010quantec}. The discrepancy is an order of
+magnitude, it does not touch the equivalent dose, and it is a property of the
+tabulated Lyman parameters rather than of the calculation. The same failure has
+been reported clinically: the Lyman-Kutcher-Burman model with historical
+parameters does not predict spinal cord tolerance in radiosurgery
+\cite{daly2012lkb}.
+
+\subsection*{What this establishes}
+
+The equivalent doses are internally coherent and externally plausible: agreement
+to 0.06\,Gy with HYPO-RT-PC, the correct ordering of the two CHHiP arms, a
+linear tail that is conservative rather than permissive for PACE-B, and a
+stereotactic cord calculation consistent with HyTEC. Two limits are equally
+clear. Imposing a single prostate $\alpha/\beta$ of 3.1\,Gy understates the
+equivalence PROFIT demonstrated, by about 5\,Gy. And the conventional spinal cord
+complication curve is incompatible with QUANTEC by an order of magnitude.
+
+No arithmetic defect is identified in the equivalent doses. The fixed
+radiobiological library, however, cannot be presented as clinically validated:
+the weaker point is the calibration of the complication parameters, and after it
+the use of one prostate $\alpha/\beta$ for every case. Both are recorded in
+Section~\ref{sec:limitations} and are why the complication and control
+probabilities are reported as indicative.
 
 \bibliographystyle{elsarticle-num}
 \bibliography{refs}
