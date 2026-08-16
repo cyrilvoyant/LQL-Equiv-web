@@ -45,6 +45,8 @@ CONTRIBUTORS = [
 ]
 
 REPOSITORY_URL = "https://github.com/cyrilvoyant/LQL-Equiv-web"
+#: For a suspected error, a better-sourced parameter, or a collaboration.
+CONTACT_EMAIL = "cyril.voyant@minesparis.psl.eu"
 
 ZENODO_DOI = "10.5281/zenodo.21948624"
 #: Zenodo's concept DOI always resolves to the most recent version.
@@ -517,12 +519,6 @@ def main() -> None:
             f"**target {tumour_band[0]:.2f} to {tumour_band[1]:.2f} {unit_gy}**."
         )
 
-    with st.expander("Which equivalent dose is this?"):
-        st.markdown(convention)
-        st.latex(r"\mathrm{BED}\big(d_r, n_r, T(n_r)\big) = "
-                 r"\mathrm{BED}\big(d, n, T(n)\big), \qquad "
-                 r"\mathrm{EQD}_{d_r} = n_r\,d_r")
-
     if result.saturated:
         st.error(
             "This schedule is beyond the range the model can express: its equivalent "
@@ -914,11 +910,29 @@ def main() -> None:
             f"[Source code and documentation]({REPOSITORY_URL})."
         )
 
+        st.markdown("#### Reporting a problem, and working together")
+        st.markdown(
+            f"A result that looks wrong is worth reporting, and so is one that "
+            f"looks right for the wrong reason. Write to **`{CONTACT_EMAIL}`** "
+            "with the schedule, the tissues and the value you obtained, or open "
+            f"an issue at [{REPOSITORY_URL}/issues]({REPOSITORY_URL}/issues) if "
+            "you would rather the exchange were public. Both are read.\n\n"
+            "The same address is the right one for a parameter you can source "
+            "better than we have, a model you would like added, a translation, or "
+            "a comparison against your own department's calculations. This is "
+            "open research software: it improves by being contradicted, and "
+            "collaboration on the underlying radiobiology is welcome on the same "
+            "terms as a correction. Contributions are acknowledged by name, and "
+            "substantial ones by authorship on the next release."
+        )
+
     st.markdown(
         f"<p class='lql-footer'>LQL-Equiv {__version__} &middot; MIT licence &middot; "
         "research and education only, not a medical device &middot; "
         "successor to the 2014 MATLAB release "
         "<a href='https://github.com/cyrilvoyant/LQ-Equiv'>cyrilvoyant/LQ-Equiv</a>"
+        f" &middot; questions, corrections and collaborations: "
+        f"<a href='mailto:{CONTACT_EMAIL}'>{CONTACT_EMAIL}</a>"
         "</p>",
         unsafe_allow_html=True,
     )

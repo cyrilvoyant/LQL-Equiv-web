@@ -36,9 +36,7 @@ sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "tools"))
 
 from compare_with_2014 import _number, replay  # noqa: E402
-from lqlequiv import (Convention, Course, Options, Prescription, compute,  # noqa: E402
-                      load_library)
-from lqlequiv.schedule import TimeModel  # noqa: E402
+from lqlequiv import Course, Options, Prescription, compute, load_library  # noqa: E402
 
 OUT = Path(__file__).resolve().parent / "figures"
 RNG = np.random.default_rng(20260815)
@@ -46,13 +44,9 @@ BOOTSTRAP = 10_000
 MARGIN = 0.05  # Gy; equivalence margin, far below any decision threshold
 SPREAD = 0.30  # 95 % of the alpha/beta draws fall within +/- this fraction
 DRAWS = 2000
-#: Figure 1 compares version 3.0 against the 2014 application and therefore runs
-#: the legacy convention, which is what that comparison is about. Figures 2 and 3
-#: are statements about the model rather than about the port, so they run the
-#: corrected convention: the equations as published, additive across courses,
-#: with the equivalent dose equal to the fraction count times the reference dose.
-EXACT = Options(legacy_quantisation=False, time_model=TimeModel.STAIRCASE,
-                convention=Convention.CORRECTED)
+#: What the software computes. Figures 1 and 5 also run
+#: ``Options.legacy_2014()``, being comparisons against the 2014 application.
+EXACT = Options()
 
 mpl.rcParams.update({
     "figure.dpi": 150, "savefig.dpi": 400, "savefig.bbox": "tight",
@@ -459,11 +453,156 @@ def figure_lql():
     plt.close(fig)
 
 
+# ---------------------------------------------------------------------------
+# Figure 5 -- what the 2014 organ-at-risk convention changed, and where
+# ---------------------------------------------------------------------------
+
+def figure_2014_difference():
+    """Version 3.0 against the 2014 application, over deliverable schedules.
+
+    One, two and three successive courses, 1 to 12 Gy per fraction, once and
+    twice a day, with and without interruptions capped at fourteen missed
+    sessions. Schedules leaving the organ above 100 Gy EQD2 are dropped, being
+    arithmetically valid and clinically meaningless, as are those the model
+    declares inapplicable.
+    """
+    library = load_library()
+    legacy = Options.legacy_2014()
+    #: An equivalent dose below 2 Gy is not a treatment and one above 100 Gy is
+    #: not an organ constraint; both ends are arithmetic rather than clinic.
+    floor, ceiling = 2.0, 100.0
+    #: Interruptions in missed sessions. Fourteen is about twenty calendar days
+    #: once the weekends inside them are supplied by the staircase.
+    max_gap = 14
+    doses = np.arange(1.0, 12.01, 0.5)
+    counts = np.array([1, 2, 3, 5, 8, 10, 12, 15, 20, 25, 30, 35, 40])
+    gap_choices = np.array([0, 0, 0, 3, 5, 7, 10, 14])
+    rng = np.random.default_rng(20260816)
+
+    rows, seen = [], set()
+    for _ in range(80_000):
+        n_courses = int(rng.integers(1, 4))
+        budget, courses = max_gap, []
+        for index in range(n_courses):
+            gap = 0 if index == 0 else int(min(rng.choice(gap_choices), budget))
+            budget -= gap
+            courses.append(Course(float(rng.choice(doses)),
+                                  float(rng.choice(counts)), float(gap)))
+        courses = tuple(courses)
+        bifractionated = bool(rng.integers(0, 2))
+        organ = library.organ(str(rng.choice(library.organ_names)))
+        target = library.tumour_site(str(rng.choice(library.tumour_names)))
+        key = (courses, bifractionated, organ.name, target.name)
+        if key in seen:
+            continue
+        seen.add(key)
+        if bifractionated and any(
+            c.dose_per_fraction > min(organ.dt, target.dt) for c in courses
+        ):
+            continue
+        plan = Prescription(courses=courses, reference_dose=2.0,
+                            bifractionated=bifractionated)
+        old = compute(organ, target, plan, legacy, library)
+        new = compute(organ, target, plan, EXACT, library)
+        if not (old.oar_total_valid and old.tumour_total_valid):
+            continue
+        pair = []
+        for a, b in ((old.eqd_oar_total, new.eqd_oar_total),
+                     (old.eqd_tumour_total, new.eqd_tumour_total)):
+            pair.append((a, b) if floor <= min(a, b) and max(a, b) <= ceiling
+                        else None)
+        if pair[0] is None and pair[1] is None:
+            continue
+        rows.append((len(courses), any(c.gap_days > 0 for c in courses),
+                     bifractionated, pair[0], pair[1]))
+
+    n_courses = np.array([r[0] for r in rows])
+    has_gap = np.array([r[1] for r in rows])
+    bids = np.array([r[2] for r in rows])
+    kept = {}
+    for index, label in ((3, "organ at risk"), (4, "target")):
+        mask = np.array([r[index] is not None for r in rows])
+        kept[label] = (mask, np.array([r[index][1] - r[index][0]
+                                       for r in rows if r[index] is not None]))
+
+    print("=" * 74)
+    print("FIGURE 5  version 3.0 against the 2014 application")
+    print(f"  {len(rows)} deliverable plans, 1 to 3 courses, 1 to 12 Gy per")
+    print(f"  fraction, once and twice a day, interruptions to {max_gap} missed")
+    print(f"  sessions, all {len(library.organ_names)} organs and "
+          f"{len(library.tumour_names)} target sites,")
+    print(f"  equivalent dose kept between {floor:g} and {ceiling:g} Gy EQD2")
+    for label, (mask, deltas) in kept.items():
+        print(f"  {label}, n = {deltas.size}")
+        print(f"    unchanged (|d| < 0.01 Gy)  {int((abs(deltas) < 0.01).sum())} "
+              f"({100 * (abs(deltas) < 0.01).mean():.1f} %)")
+        print(f"    median                     {np.median(deltas):+.2f} Gy")
+        print(f"    5th, 95th percentile       {np.percentile(deltas, 5):+.2f}, "
+              f"{np.percentile(deltas, 95):+.2f} Gy")
+        print(f"    range                      {deltas.min():+.2f} to "
+              f"{deltas.max():+.2f} Gy")
+        for sub, name in ((n_courses[mask] == 1, "one course       "),
+                          (n_courses[mask] == 2, "two courses      "),
+                          (n_courses[mask] == 3, "three courses    "),
+                          (~has_gap[mask], "no interruption  "),
+                          (has_gap[mask], "with interruption"),
+                          (~bids[mask], "once a day       "),
+                          (bids[mask], "twice a day      ")):
+            if sub.sum():
+                print(f"      {name} n = {int(sub.sum()):5d}  median "
+                      f"{np.median(deltas[sub]):+6.2f}  5th "
+                      f"{np.percentile(deltas[sub], 5):+7.2f} Gy")
+
+    fig, (left, right) = plt.subplots(1, 2, figsize=(7.1, 2.9))
+    oar_mask, oar = kept["organ at risk"]
+    left.hist([oar[n_courses[oar_mask] == k] for k in (1, 2, 3)], bins=55,
+              stacked=True, color=[BLUE, TEAL, SAND], edgecolor="none",
+              label=["one course", "two courses", "three courses"])
+    left.axvline(0, color=RED, lw=1.2)
+    left.set_yscale("log")
+    left.set_xlabel("version 3.0 minus 2014 (Gy)")
+    left.set_ylabel("plans")
+    left.legend(loc="upper left")
+    panel_tag(left, f"(a)  organ at risk, {oar.size} plans")
+
+    groups, ticks, colours = [], [], []
+    for label, colour in (("organ at risk", BLUE), ("target", TEAL)):
+        mask, deltas = kept[label]
+        for sub, tick in ((~has_gap[mask] & ~bids[mask], "plain"),
+                          (has_gap[mask], "gap"),
+                          (bids[mask], "twice a day")):
+            if sub.sum():
+                groups.append(deltas[sub])
+                ticks.append(tick)
+                colours.append(colour)
+    box = right.boxplot(groups, tick_labels=ticks, widths=0.6, patch_artist=True,
+                        flierprops=dict(markersize=1.2))
+    for patch, colour in zip(box["boxes"], colours):
+        patch.set_facecolor(colour)
+        patch.set_alpha(0.35)
+        patch.set_edgecolor(colour)
+    for median in box["medians"]:
+        median.set_color("#2a2a2a")
+    right.axhline(0, color=RED, lw=1.2)
+    right.set_ylabel("version 3.0 minus 2014 (Gy)")
+    right.tick_params(axis="x", labelsize=7)
+    right.text(0.25, 0.03, "organ at risk", transform=right.transAxes,
+               fontsize=7, color=BLUE, ha="center")
+    right.text(0.75, 0.03, "target", transform=right.transAxes,
+               fontsize=7, color=TEAL, ha="center")
+    panel_tag(right, "(b)  both tissues, by interruption and regime")
+
+    fig.tight_layout()
+    fig.savefig(OUT / "fig5_difference2014.pdf")
+    plt.close(fig)
+
+
 def main() -> int:
     OUT.mkdir(exist_ok=True)
     figure_equivalence()
     figure_fractionation()
     figure_lql()
+    figure_2014_difference()
     print("=" * 74)
     print(f"figures written to {OUT}")
     return 0

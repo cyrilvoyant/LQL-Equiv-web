@@ -292,27 +292,20 @@ and then reading
 \label{eq:eqd}
 \end{equation}
 
-Equations \eqref{eq:bed}--\eqref{eq:eqd} are what \texttt{LQL-Equiv}~3.0 solves,
-and they are not what the 2014 application solved. Its source imposes three
-conventions its published equations do not describe: the organ-at-risk
-proliferation loss is a flat $n\,(7/5)\,D_\mathrm{prol}$ that never reads $T_k$;
-the reported organ equivalent dose is not $n_r d_r$ but
-$n_r d_r - (T - T_r)\,D_\mathrm{prol}$, a second time correction laid on a root
-that already carried one; and the tumour calendar is a flat $(n+g)\,7/5$, blind
-to both the weekend staircase and two fractions a day. For a rectum receiving
-20~$\times$~3\,Gy the second of these is worth 7.65\,Gy, since $n_r d_r$ is
-75.03\,Gy while 82.69\,Gy is reported. The consequences are not cosmetic:
-splitting a 40-fraction course into two adds 0.6\,Gy from nowhere, and an organ
-whose proliferation starts on day 100 is charged as though it started on day one.
-
-Both are therefore available and neither is hidden. \texttt{Convention.LEGACY}
-reproduces the 2014 code and is the default, because reproducing published
-results is what it is for; it is the convention the validation of
-Section~\ref{sec:verification} measures. \texttt{Convention.CORRECTED} solves
-\eqref{eq:bed}--\eqref{eq:eqd} as printed, is additive across courses by
-construction, and is what the browser application runs and what
-Sections~\ref{sec:examples} onwards use. It is not expected to reproduce the 2014
-numbers, and it does not.
+Equations \eqref{eq:bed}--\eqref{eq:eqd} are what \texttt{LQL-Equiv}~3.0 solves.
+They are not what the 2014 application computed for the organ at risk. That
+release reported $n_r d_r - (T - T_r)\,D_\mathrm{prol}$, and the difference
+matters: for a rectum receiving 20~$\times$~3\,Gy it reported 82.69\,Gy where
+\eqref{eq:eqd} gives 74.81\,Gy. The reported value does not satisfy the equality
+it is derived from. Delivering 82.69\,Gy at the reference fraction size returns a
+biologically effective dose of 107.74\,Gy against the schedule's own 97.75\,Gy,
+because proliferation is subtracted once inside the search and once again
+afterwards. The tumour branch of the same routine carries no such term.
+Appendix~\ref{app:2014} gives the arithmetic, the criterion that separates a
+convention from an inconsistency, and the size of the difference over 7850
+schedules. \texttt{Options.legacy\_2014()} reproduces the 2014 behaviour for
+anyone recomputing a result published before 2026, and is what the validation of
+Section~\ref{sec:verification} measures; nothing else uses it.
 
 Two points about \eqref{eq:core} are easy to miss and account for most of the
 disagreement between implementations. First, the reference schedule on the left
@@ -800,6 +793,156 @@ The source code, the documentation and the complete validation dataset are
 openly available at \url{https://github.com/cyrilvoyant/LQL-Equiv-web} and
 archived at \url{https://doi.org/10.5281/zenodo.21948624}. The application runs
 at \url{https://cyrilvoyant.github.io/LQL-Equiv-web/}.
+
+%% ---------------------------------------------------------------------------
+\appendix
+\section{What changed between the 2014 release and version 3.0}
+\label{app:2014}
+
+Version 3.0 does not reproduce the 2014 application for the organ at risk. This
+appendix states what each version computes, in its own notation, and measures the
+difference. The tumour calculation is unchanged in substance.
+
+Everything below can be checked against the original, which is openly archived at
+\url{https://github.com/cyrilvoyant/LQ-Equiv} and at
+\url{https://doi.org/10.5281/zenodo.16739883}. The block discussed here is
+\texttt{pushbutton4\_Callback} in \texttt{eqd\_matlb.m}, inside
+\texttt{codesource.zip}, at lines 3186--3245. The captured outputs of the running
+application ship as \texttt{tests/data/golden.jsonl}, so the comparison can be
+repeated without MATLAB.
+
+\subsection*{What the 2014 source computes}
+
+Writing $n$ and $d$ for the evaluated schedule, $d_r$ for the reference fraction
+size, $L(x) = x\,[1 + x/(\alpha/\beta)]$ for the per-fraction term below the
+transition dose, and $\Theta$ for the weekend staircase of \eqref{eq:time}, the
+routine first solves, on a grid of hundredths of a fraction,
+\begin{equation}
+n_r \;=\; \arg\min_{x} \left|\;
+\Big[n L(d)   - \tfrac{7}{5}\,n\,D_\mathrm{prol}\Big]
+-\Big[x L(d_r) - \tfrac{7}{5}\,x\,D_\mathrm{prol}\Big] \right| ,
+\label{eq:legacy-search}
+\end{equation}
+so that proliferation is charged on both sides at the rate of $7/5$ days per
+fraction. It then reports
+\begin{equation}
+\mathrm{EQD}^{\,2014}_{d_r} \;=\; n_r\,d_r
+\;-\;\big[\Theta(n + g) - \Theta(n_r)\big]\,D_\mathrm{prol} .
+\label{eq:legacy-report}
+\end{equation}
+Two properties of this pair are worth stating. The kick-off time $T_k$ appears
+nowhere in \eqref{eq:legacy-search}, although it does appear in the tumour
+branch of the same routine. And the equivalent dose reported for the tumour,
+computed a few lines further down, is $n_r d_r$ with no second term.
+
+\subsection*{What version 3.0 computes}
+
+Equations \eqref{eq:bed}--\eqref{eq:eqd}, unchanged from their published form:
+proliferation through $(T-T_k)_{+}$ on both sides, the same elapsed calendar
+$T = \Theta(\cdot)$ on both sides, and
+$\mathrm{EQD}_{d_r} = n_r d_r$ with nothing added afterwards.
+
+\subsection*{The criterion}
+
+A convention returns a different number that is consistent with its own
+definition; an inconsistency returns a number that is not. The definition here is
+\eqref{eq:core}, so the test is whether the reported dose, delivered at $d_r$,
+reproduces the biologically effective dose it replaced. For a rectum
+($\alpha/\beta = 3.9$\,Gy, $D_\mathrm{prol} = 0.3$\,Gy\,d$^{-1}$) receiving
+20~$\times$~3\,Gy:
+
+\begin{center}
+\small
+\begin{tabular}{@{}lrr@{}}
+\toprule
+ & \textbf{2014} & \textbf{version 3.0} \\
+\midrule
+BED of the schedule (Gy)                      & 97.75  & 97.75 \\
+Equivalent dose reported (Gy)                 & 82.69  & 74.81 \\
+\quad as fractions of 2\,Gy                   & 41.34  & 37.41 \\
+BED of that schedule (Gy)                     & \textbf{107.74} & \textbf{97.75} \\
+\quad against 97.75\,Gy                       & $+9.97$ & $0.00$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The 2014 value fails the test, and the reason is visible in
+\eqref{eq:legacy-search}--\eqref{eq:legacy-report}: $n_r$ already balances the
+proliferation of the two schedules, so subtracting the difference in their spans
+a second time charges it twice. Of the 7.65\,Gy that
+\eqref{eq:legacy-report} adds for this case, 7.36\,Gy is the amount already
+priced into $n_r$ and 0.30\,Gy is the genuine refinement from replacing the rate
+$7/5$ by the staircase. Over 7850 deliverable schedules the round trip closes for
+28.6\,\% of the 2014 values and for all of version 3.0's.
+
+\subsection*{One difference that is a convention}
+
+The choice between the staircase $\Theta$ and its long-run rate $7n/5$ is not
+settled by any such test: both are defensible, and they never differ by more than
+2.4 days, worth 0.7\,Gy per side at $D_\mathrm{prol} = 0.3$\,Gy\,d$^{-1}$.
+Version 3.0 uses the staircase throughout, because proliferation is charged per
+elapsed day and weekends are elapsed days: 40 sessions delivered Monday to
+Friday span 54 days, not the 56 the rate returns. The 2014 code used the rate
+inside \eqref{eq:legacy-search} and the staircase in
+\eqref{eq:legacy-report}, which is the mixture that made the double charge hard
+to see. Using the rate consistently instead would move the case above from
+74.81\,Gy to 75.03\,Gy.
+
+The staircase costs something in return. It drops the reference BED by two days
+of proliferation at every weekend, so a target falling in that drop is met by two
+fraction counts, one on each side of the jump, both exact. The shorter is
+reported, so that the equivalent dose remains a function of its input.
+
+\subsection*{How large the difference is}
+
+Figure~\ref{fig:difference2014} takes 14\,712 deliverable plans: one, two and
+three successive courses, 1 to 12\,Gy per fraction, once and twice a day, with
+interruptions up to fourteen missed sessions in total, over all 34 organs and 20
+target sites of the library, keeping only those whose equivalent dose falls
+between 2 and 100\,Gy EQD2.
+
+\begin{center}
+\small
+\begin{tabular}{@{}lrr@{}}
+\toprule
+Version 3.0 minus 2014       & \textbf{Organ at risk} & \textbf{Target} \\
+\midrule
+Plans                        & 12\,625 & 14\,543 \\
+Unchanged ($|\Delta| < 0.01$\,Gy) & 27.5\,\% & 42.8\,\% \\
+Median                       & $-1.00$\,Gy & $-0.00$\,Gy \\
+5th, 95th percentile         & $-17.22$, $+5.46$\,Gy & $-1.41$, $+6.20$\,Gy \\
+Range                        & $-46.8$ to $+35.2$\,Gy & $-3.8$ to $+36.7$\,Gy \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The organ moves and the target barely does, which is what
+\eqref{eq:legacy-report} predicts: the second term exists only on the organ
+branch, and what remains on the target is the calendar alone. The difference is
+nil at the reference fraction size, where the two calendars coincide and
+\eqref{eq:legacy-report} adds nothing, and nil for the eight organs whose
+$D_\mathrm{prol}$ is zero; it grows with the departure from $d_r$. It is mostly
+negative, the 2014 release having reported more dose to the organ than the
+schedule carries, and turns positive for fraction sizes below $d_r$ and for
+schedules prolonged by an interruption. Splitting a course into two moved the
+2014 total by up to 0.6\,Gy; version 3.0 is additive by construction.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig5_difference2014.pdf}
+\caption{Equivalent dose, version 3.0 minus the 2014 release, over 14\,712
+deliverable plans. (a) Organ at risk, on a logarithmic count axis, stacked by
+number of successive courses. (b) Both tissues, split by whether the plan
+contains an interruption and by fraction regime. The target moves only through
+the calendar; the organ carries the second term as well.}
+\label{fig:difference2014}
+\end{figure}
+
+A value published before 2026 can be recovered with
+\texttt{Options.legacy\_2014()}, which reproduces
+\eqref{eq:legacy-search}--\eqref{eq:legacy-report} together with the three other
+defects of Section~\ref{sec:verification}. It is what the 4438-schedule
+non-regression suite measures; nothing else in the software uses it.
 
 \bibliographystyle{elsarticle-num}
 \bibliography{refs}

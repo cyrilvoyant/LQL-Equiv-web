@@ -641,9 +641,26 @@ def _sessions(course: Course, bifractionated: bool) -> float:
     return delivered + course.gap_days
 
 
+def _time_loss(
+    days_before: float, span: float, tissue: Tissue, dprol: float, kick_off: bool
+) -> float:
+    """Dose lost to proliferation over one course, in gray.
+
+    Two models, as the 2014 paper sets them out. The target volume follows Dale:
+    nothing is lost until the overall time passes the kick-off time ``Tk``,
+    equations (3) and (4). The organ at risk follows Van Dyk: there is no kick-off
+    time, and the recovered dose accrues from the first day, equations (6) and (7).
+    The paper is explicit that the two differ -- "for the organs at risk, the
+    kick-off time is not relevant" -- and the difference is not an oversight.
+    """
+    if not kick_off:
+        return dprol * span
+    return _proliferation_loss(days_before, span, tissue, dprol)
+
+
 def _reference_fractions(
     bed: float, reference_dose: float, sessions_before: float, tissue: Tissue,
-    gamma: float, dprol: float, model: TimeModel,
+    gamma: float, dprol: float, model: TimeModel, kick_off: bool,
 ) -> float:
     """Reference fractions matching ``bed``, on the real weekend calendar.
 
@@ -665,13 +682,14 @@ def _reference_fractions(
         span = overall_time(sessions_before + n, model) - days_before
         return abs(
             n * per_fraction
-            - _proliferation_loss(days_before, span, tissue, dprol)
+            - _time_loss(days_before, span, tissue, dprol, kick_off)
             - bed
         )
 
     low_bound, high_bound = _EXACT_TUMOUR_BOUNDS
     days_before = overall_time(sessions_before, model)
-    already = (tissue.Tk - days_before) * _heaviside(tissue.Tk - days_before)
+    already = ((tissue.Tk - days_before) * _heaviside(tissue.Tk - days_before)
+               if kick_off else 0.0)
     tail_slope = per_fraction - dprol
 
     for low, high, offset in staircase_segments(sessions_before + 400.0):
@@ -681,9 +699,12 @@ def _reference_fractions(
         high_n = min(high - sessions_before, high_bound)
         if high_n < low_n:
             continue
-        # Before the kick-off there is no loss; after it the loss is
-        # dprol * (span - already), and the span is affine in n on this segment.
-        candidates = [bed / per_fraction if per_fraction else 0.0]
+        # With a kick-off time there is a branch below it where nothing is lost;
+        # without one the loss applies throughout. Either way it is affine in n
+        # on this segment, so the root is closed-form.
+        candidates = []
+        if kick_off:
+            candidates.append(bed / per_fraction if per_fraction else 0.0)
         if tail_slope:
             constant = dprol * (sessions_before + offset - days_before - already)
             candidates.append((bed + constant) / tail_slope)
@@ -724,13 +745,17 @@ def _compute_adjusted(
     Sessions accumulate across courses rather than restarting, so forty fractions
     in one course and twenty plus twenty span the same time, and a gap is counted
     in missed sessions so that the weekends inside it are supplied by the
-    staircase itself. Both tissues use the same proliferation term, switched on
-    at their own kick-off time, and the equivalent dose is the fraction count
-    times the reference dose, with nothing added afterwards.
+    staircase itself. The two tissues keep the two proliferation models the paper
+    gives them, Dale with a kick-off time for the target and Van Dyk without one
+    for the organ, and the equivalent dose is the fraction count times the
+    reference dose, with nothing added afterwards.
     """
     repair_oar = _incomplete_repair(oar) if prescription.bifractionated else 0.0
     repair_tum = _incomplete_repair(tum) if prescription.bifractionated else 0.0
     dprol = {"oar": oar.dprol, "tum": _tumour_dprol(tum)}
+    #: Equations (3) and (4) of the 2014 paper carry the kick-off time; equations
+    #: (6) and (7), for the organ at risk, deliberately do not.
+    kick_off = {"oar": False, "tum": True}
     reference = prescription.reference_dose
     bounds = _EXACT_TUMOUR_BOUNDS
     model = options.time_model
@@ -748,16 +773,16 @@ def _compute_adjusted(
 
         per_course: dict[str, tuple[float, float]] = {}
         for key, tissue, repair in (("oar", oar, repair_oar), ("tum", tum, repair_tum)):
-            bed = _tumour_course_bed(
-                course, delivered_before, days_of_course, tissue, gamma, repair,
-                dprol[key],
-            )
+            bed = (course.n_fractions
+                   * _lql_dose_term(course.dose_per_fraction, tissue, gamma, repair)
+                   - _time_loss(delivered_before, days_of_course, tissue,
+                                dprol[key], kick_off[key]))
             if empty:
                 fractions = 0.0
             else:
                 fractions = _reference_fractions(
                     bed, reference, reference_sessions[key], tissue, gamma,
-                    dprol[key], model,
+                    dprol[key], model, kick_off[key],
                 )
             eqd = fractions * reference
             if eqd + totals[key] < 0.0:

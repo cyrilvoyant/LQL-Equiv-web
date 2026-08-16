@@ -196,24 +196,40 @@ def test_adjusted_equivalent_dose_is_fractions_times_reference_dose(library):
         legacy.equivalent_fractions_oar * 2.0, rel=1e-6)
 
 
-def test_adjusted_organ_dose_responds_to_the_kick_off_time(library):
-    """Tk must enter the organ-at-risk calculation.
+def test_the_two_tissues_use_the_two_published_proliferation_models(library):
+    """Dale for the target, Van Dyk for the organ, and they are not the same.
 
-    The 2014 organ branch applies proliferation as a flat n * 7/5 * dprol and
-    never reads Tk, so an organ that starts proliferating on day 100 is charged
-    as though it started on day one.
+    The 2014 paper is explicit: equations (3) and (4) carry the kick-off time and
+    apply to the target volume, and then "for the organs at risk, the kick-off
+    time is not relevant, meaning that it is necessary to use a
+    repopulation-specific approach". Equations (6) and (7) subtract a recovered
+    dose over the whole overall time, with no threshold.
+
+    So Tk must move the target result and must not move the organ result. Getting
+    this backwards is easy, and looks like a symmetry.
     """
     from dataclasses import replace
 
     organ, tumour = library.organ("Rectum"), library.tumour_site("Prostate")
     plan = Prescription(courses=(Course(3.0, 20),), reference_dose=2.0)
 
-    def dose(options, kick_off):
-        return compute(replace(organ, Tk=kick_off), tumour, plan, options,
+    def organ_dose(kick_off):
+        return compute(replace(organ, Tk=kick_off), tumour, plan, ADJUSTED,
                        library).eqd_oar_total
 
-    assert dose(ADJUSTED, 100.0) != pytest.approx(dose(ADJUSTED, 28.0), rel=1e-6)
-    assert dose(LEGACY, 100.0) == pytest.approx(dose(LEGACY, 28.0), rel=1e-15)
+    def target_dose(kick_off):
+        return compute(organ, replace(tumour, Tk=kick_off), plan, ADJUSTED,
+                       library).eqd_tumour_total
+
+    baseline = organ_dose(28.0)
+    for kick_off in (0.0, 14.0, 100.0, 1000.0):
+        assert organ_dose(kick_off) == pytest.approx(baseline, rel=1e-15)
+    assert target_dose(100.0) != pytest.approx(target_dose(21.0), rel=1e-6)
+
+    # The organ still loses dose to recovery: it is the threshold that is absent,
+    # not the term. Setting the recovered dose to zero must change the answer.
+    assert compute(replace(organ, dprol=0.0), tumour, plan, ADJUSTED,
+                   library).eqd_oar_total != pytest.approx(baseline, rel=1e-6)
 
 
 def test_adjusted_totals_do_not_depend_on_how_a_course_is_split(library):
