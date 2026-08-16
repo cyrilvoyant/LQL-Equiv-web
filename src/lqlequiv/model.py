@@ -1,4 +1,4 @@
-"""Biologically equivalent doses under the linear-quadratic-linear model.
+﻿"""Biologically equivalent doses under the linear-quadratic-linear model.
 
 This is a faithful port of the calculation performed by ``pushbutton4_Callback``
 in the 2014 MATLAB application (``cyrilvoyant/LQ-Equiv``), covering:
@@ -11,9 +11,7 @@ in the 2014 MATLAB application (``cyrilvoyant/LQ-Equiv``), covering:
 * normal-tissue complication probability under the Lyman probit model;
 * radiation-induced cancer risk under a linear-exponential model.
 
-Where the 2014 implementation is quirky, the quirk is reproduced and named. Two
-switches in :class:`Options` select between bug-for-bug reproduction and the
-corrected behaviour; both default to reproduction.
+Where the 2014 implementation is quirky, the quirk is reproduced and named. The software solves the published equations by default; :meth:`Options.legacy_2014` reproduces the 2014 application, quirks and all, for the non-regression suite.
 
 References
 ----------
@@ -59,48 +57,68 @@ class NotComputable(Exception):
 
 
 class Convention(Enum):
-    """Which set of equations to solve.
+    """Which time convention to apply. There is one right answer and one legacy.
 
-    ``LEGACY`` reproduces the 2014 application, including three conventions that
-    its source imposes and that the published equations do not describe:
+    ``ADJUSTED`` is the software's behaviour and the only one users should ever
+    see. It solves the equivalence as published: one absolute calendar at 7 days
+    per 5 treatment sessions, shared by both tissues and by both sides of the
+    equality; proliferation applied through ``(T - Tk)+`` throughout; and
+    ``EQD = n_r * d_r``, with nothing added afterwards.
 
-    * the organ-at-risk proliferation loss is a flat ``n * 7/5 * dprol`` that
-      ignores the kick-off time ``Tk`` entirely;
-    * the reported organ equivalent dose is not ``n_r * d_r`` but
-      ``n_r * d_r - (T_course - T_reference) * dprol``, a second time correction
-      applied on top of a root that already carried one;
-    * the tumour calendar is a flat ``(n + g) * 7/5``, so it sees neither the
-      weekend staircase nor two fractions a day.
+    ``LEGACY_2014`` reproduces the published MATLAB application, and exists so
+    that results computed before 2026 remain reachable. It carries three time
+    conventions that the equations published alongside it do not describe:
 
-    ``CORRECTED`` solves the equations as published: one absolute delivered
-    calendar shared by both tissues, a reference schedule advancing at the
-    continuous rate of 7 days per 5 fractions, proliferation applied through
-    ``(T - Tk)+`` on both sides of the equality, and ``EQD = n_r * d_r`` with
-    nothing added afterwards. It is additive across courses by construction and
-    is not expected to reproduce the 2014 numbers.
+    * the organ-at-risk proliferation loss is a flat ``n * 7/5 * dprol``, so the
+      kick-off time ``Tk`` is never read for an organ, though it is for a tumour;
+    * the reported organ equivalent dose is
+      ``n_r * d_r - (T_course - T_reference) * dprol``, a calendar correction
+      applied on top of a root that already balanced proliferation;
+    * the tumour calendar is a flat ``(n + g) * 7/5``, blind to the weekend
+      staircase and to two fractions a day.
+
+    The second is the consequential one. Its effect is nil at the reference
+    fraction size, where the two calendars coincide, and grows with the departure
+    from it. See ``docs/COMPARISON-2014.md`` for the measured difference and for
+    the round-trip criterion that separates the two.
     """
 
-    LEGACY = "legacy"
-    CORRECTED = "corrected"
+    ADJUSTED = "adjusted"
+    LEGACY_2014 = "legacy-2014"
 
 
 @dataclass(frozen=True)
 class Options:
-    """Switches between 2014-compatible and corrected behaviour."""
+    """How to compute. The defaults are the behaviour the software stands behind.
+
+    ``Options()`` solves the published equations exactly. Nothing here needs to
+    be set for ordinary use; the fields exist so that the 2014 application can be
+    reproduced by the validation suite, through :meth:`legacy_2014`.
+    """
 
     #: Snap the equivalent fraction count to the 2014 grid of 0.01 fractions.
     #: The underlying root is exact either way; this only quantises it.
-    legacy_quantisation: bool = True
+    legacy_quantisation: bool = False
     #: Calendar model beyond 86 fractions. See :mod:`lqlequiv.schedule`.
-    time_model: TimeModel = TimeModel.LEGACY
+    time_model: TimeModel = TimeModel.STAIRCASE
     #: Sigmoid used for the tumour control probability, which is new in 3.0.
     tcp_model: TCPModel = None  # type: ignore[assignment]
-    #: Which equations to solve. See :class:`Convention`.
-    convention: Convention = Convention.LEGACY
+    #: Which time convention to apply. See :class:`Convention`.
+    convention: Convention = Convention.ADJUSTED
 
     def __post_init__(self) -> None:
         if self.tcp_model is None:
             object.__setattr__(self, "tcp_model", TCPModel.LOGISTIC)
+
+    @classmethod
+    def legacy_2014(cls, tcp_model: TCPModel | None = None) -> "Options":
+        """Reproduce the 2014 MATLAB application, defects and conventions included.
+
+        For recomputing a published result, and for the non-regression suite. Not
+        for new work: see :class:`Convention` for what it changes and why.
+        """
+        return cls(legacy_quantisation=True, time_model=TimeModel.LEGACY,
+                   tcp_model=tcp_model, convention=Convention.LEGACY_2014)
 
 
 @dataclass(frozen=True)
@@ -517,7 +535,7 @@ def compute(
     oar = organ if isinstance(organ, Tissue) else library.organ(organ)
     tum = tumour if isinstance(tumour, Tissue) else library.tumour_site(tumour)
 
-    if options.convention is Convention.CORRECTED:
+    if options.convention is Convention.ADJUSTED:
         return _compute_corrected(oar, tum, prescription, options, library, gamma)
 
     oar_bounds = _OAR_BOUNDS if options.legacy_quantisation else _EXACT_OAR_BOUNDS
@@ -638,7 +656,7 @@ def _compute_corrected(
 ) -> Result:
     """Solve the published equations rather than reproduce the 2014 source.
 
-    Three things differ from :data:`Convention.LEGACY`, and each of them is a
+    Three things differ from :data:`Convention.LEGACY_2014`, and each of them is a
     place where the 2014 code and the equations it was published with disagree.
 
     Delivered and reference schedules run on one absolute calendar, at the
@@ -664,7 +682,7 @@ def _compute_corrected(
     reference = prescription.reference_dose
     bounds = _EXACT_TUMOUR_BOUNDS
     exact = Options(legacy_quantisation=False, time_model=options.time_model,
-                    tcp_model=options.tcp_model, convention=Convention.CORRECTED)
+                    tcp_model=options.tcp_model, convention=Convention.ADJUSTED)
 
     results: list[CourseResult] = []
     totals = {"oar": 0.0, "tum": 0.0}

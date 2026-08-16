@@ -1,4 +1,4 @@
-"""Quantify the deviation between the 2014 MATLAB application and this port.
+﻿"""Quantify the deviation between the 2014 MATLAB application and this port.
 
 Reads the golden dataset captured from the original GUIDE application (see
 ``tools/matlab/sweep.m``), replays every case through :mod:`lqlequiv`, and
@@ -114,7 +114,7 @@ def replay(case: dict, options: Options) -> dict[str, float | None]:
 
 
 def run(path: Path, options: Options | None = None) -> dict[str, Deviation]:
-    options = options or Options()
+    options = options or Options.legacy_2014()
     stats: dict[str, Deviation] = {}
     for key, label in SCALAR_FIELDS.items():
         stats[key] = Deviation(label)
@@ -148,7 +148,7 @@ def main() -> int:
                         help="disable the 2014 grid quantisation")
     args = parser.parse_args()
 
-    options = Options(legacy_quantisation=not args.exact)
+    options = Options.legacy_2014() if not args.exact else Options()
     stats = run(args.golden, options)
 
     if args.markdown:

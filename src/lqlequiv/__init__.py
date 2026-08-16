@@ -1,4 +1,4 @@
-"""LQL-Equiv: biologically equivalent doses in radiotherapy.
+﻿"""LQL-Equiv: biologically equivalent doses in radiotherapy.
 
 A Python port of the 2014 MATLAB application ``cyrilvoyant/LQ-Equiv``, computing
 biologically effective dose, equivalent dose in a reference fractionation,
@@ -19,7 +19,6 @@ Example
 """
 
 from .model import (
-    Convention,
     Course,
     CourseResult,
     Options,
@@ -38,7 +37,6 @@ from .tissues import Library, Tissue, load_library
 __version__ = "3.0.0"
 
 __all__ = [
-    "Convention",
     "Course",
     "CourseResult",
     "Library",

@@ -145,15 +145,16 @@ def test_a_schedule_beyond_the_2014_search_range_is_flagged(library):
     organ, tumour = library.organ("Rectum"), library.tumour_site("Prostate")
     plan = Prescription(courses=(Course(6.0, 40),), reference_dose=2.0)
 
-    legacy = compute(organ, tumour, plan)
+    legacy = compute(organ, tumour, plan, Options.legacy_2014())
     assert legacy.saturated
     assert legacy.eqd_tumour_total == pytest.approx(200.0)
     # Adding dose does not move a saturated answer, which is the whole problem.
     more = compute(organ, tumour,
-                   Prescription(courses=(Course(6.0, 60),), reference_dose=2.0))
+                   Prescription(courses=(Course(6.0, 60),), reference_dose=2.0),
+                   Options.legacy_2014())
     assert more.eqd_tumour_total == pytest.approx(legacy.eqd_tumour_total)
 
-    exact = compute(organ, tumour, plan, Options(legacy_quantisation=False))
+    exact = compute(organ, tumour, plan)
     assert not exact.saturated
     assert exact.eqd_tumour_total > 200.0
 

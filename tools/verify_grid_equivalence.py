@@ -1,4 +1,4 @@
-"""Prove the closed-form search agrees with the 2014 exhaustive grid search.
+﻿"""Prove the closed-form search agrees with the 2014 exhaustive grid search.
 
 The 2014 application finds an equivalent fraction count by evaluating its
 objective at every point of a grid of hundredths of a fraction and taking the
@@ -68,7 +68,7 @@ def _tumour_grid(
 def verify(path: Path) -> int:
     library = load_library()
     gamma = library.gamma_over_alpha
-    options = Options()
+    options = Options.legacy_2014()
     checked = disagreements = 0
 
     with path.open(encoding="utf-8") as handle:

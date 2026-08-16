@@ -1,4 +1,4 @@
-"""Non-regression against the original MATLAB application.
+﻿"""Non-regression against the original MATLAB application.
 
 The golden dataset was captured by driving the 2014 GUIDE application headless
 over 4438 schedules; see ``tools/matlab/sweep.m``. MATLAB writes its interface
@@ -32,7 +32,7 @@ def _six_significant_digits(value):
 
 
 def test_matches_the_2014_application(golden_path):
-    options = Options()
+    options = Options.legacy_2014()
     compared = agreed = 0
     disagreeing_cases = set()
 
@@ -71,10 +71,17 @@ def test_matches_the_2014_application(golden_path):
     ],
 )
 def test_reference_cases(organ, tumour, dose, fractions, expected_oar):
-    """Values pinned directly from the 2014 application."""
+    """Values pinned directly from the 2014 application.
+
+    Read under ``legacy_2014``, since that is what they are: what the 2014
+    application printed. The software's own answer differs wherever the organ
+    proliferates and the fraction size departs from the reference, which is the
+    subject of ``docs/COMPARISON-2014.md``.
+    """
     library = load_library()
     result = compute(
         library.organ(organ), library.tumour_site(tumour),
         Prescription(courses=(Course(dose, fractions),), reference_dose=2.0),
+        Options.legacy_2014(),
     )
     assert result.eqd_oar_total == pytest.approx(expected_oar, abs=5e-3)

@@ -13,15 +13,17 @@ import math
 
 import pytest
 
-from lqlequiv import (Convention, Course, Options, Prescription, compute,
-                      load_library)
+from lqlequiv import Course, Options, Prescription, compute, load_library
 from lqlequiv.model import (BIFRACTION_INTERVAL_HOURS, _incomplete_repair,
                             _lql_dose_term, _tumour_dprol)
 from lqlequiv.schedule import TimeModel, overall_time
 
-EXACT = Options(legacy_quantisation=False, time_model=TimeModel.STAIRCASE)
-CORRECTED = Options(legacy_quantisation=False, time_model=TimeModel.STAIRCASE,
-                    convention=Convention.CORRECTED)
+#: What the software computes, and what every test below asserts unless it is
+#: explicitly contrasting the two.
+ADJUSTED = Options()
+#: The 2014 application, reproduced. Present only so that the difference between
+#: the two time conventions can be pinned rather than described.
+LEGACY = Options.legacy_2014()
 
 
 @pytest.fixture(scope="module")
@@ -65,7 +67,7 @@ def test_bed_matches_a_hand_calculation(library):
                      alpha=0.3, Tk=21.0, Tp=4.0)
     dprol = _tumour_dprol(tissue)
     # The 2014 source writes the constant as 0.693 rather than ln 2, which biases
-    # the proliferation dose by 2e-4 in relative terms. Pinned, not corrected:
+    # the proliferation dose by 2e-4 in relative terms. Pinned, not ADJUSTED:
     # changing it would move every historical result by that amount.
     assert dprol == pytest.approx(0.693 / (0.3 * 4.0), rel=1e-12)
     assert dprol != pytest.approx(math.log(2) / (0.3 * 4.0), rel=1e-6)
@@ -78,7 +80,7 @@ def test_bed_matches_a_hand_calculation(library):
 
     result = compute(library.organ("Spinal cord"), tissue,
                      Prescription(courses=(Course(2.0, 35),), reference_dose=2.0),
-                     EXACT, library)
+                     LEGACY, library)
     assert result.courses[0].bed_tumour == pytest.approx(expected, rel=1e-9)
 
 
@@ -90,7 +92,7 @@ def test_no_proliferation_loss_before_the_kick_off_time(library):
 
     short = compute(organ, tumour,
                     Prescription(courses=(Course(2.0, 10),), reference_dose=2.0),
-                    EXACT, library)
+                    LEGACY, library)
     assert 10 * 7 / 5 < tumour.Tk
     assert short.courses[0].bed_tumour == pytest.approx(
         10 * 2.0 * (1 + 2.0 / tumour.alpha_beta), rel=1e-9)
@@ -100,7 +102,7 @@ def test_no_proliferation_loss_before_the_kick_off_time(library):
         time = count * 7 / 5
         result = compute(organ, tumour,
                          Prescription(courses=(Course(2.0, count),), reference_dose=2.0),
-                         EXACT, library)
+                         LEGACY, library)
         expected = count * 2.0 * (1 + 2.0 / tumour.alpha_beta) - dprol * max(
             0.0, time - tumour.Tk)
         assert result.courses[0].bed_tumour == pytest.approx(expected, rel=1e-9)
@@ -118,7 +120,7 @@ def test_reference_schedule_is_its_own_equivalent_exactly(library):
         for count in (10, 25, 40):
             result = compute(organ, tumour,
                              Prescription(courses=(Course(dose, count),),
-                                          reference_dose=dose), EXACT, library)
+                                          reference_dose=dose), LEGACY, library)
             assert result.eqd_tumour_total == pytest.approx(dose * count, rel=1e-9)
             assert result.eqd_oar_total == pytest.approx(dose * count, rel=1e-9)
 
@@ -168,19 +170,19 @@ def _totals(library, courses, options, bifractionated=False,
     return result.eqd_oar_total, result.eqd_tumour_total
 
 
-def test_corrected_equivalent_dose_is_fractions_times_reference_dose(library):
+def test_adjusted_equivalent_dose_is_fractions_times_reference_dose(library):
     """EQD = n_r * d_r, with nothing added afterwards.
 
     The 2014 organ-at-risk branch reports n_r * d_r - (T_course - T_ref) * dprol,
     a second time correction laid on top of a root that already carried one. That
     is the behaviour LEGACY reproduces and it is not what the equations say. Under
-    CORRECTED the reported dose is the fraction count times the reference dose,
+    ADJUSTED the reported dose is the fraction count times the reference dose,
     which is the identity every downstream reading depends on.
     """
     organ, tumour = library.organ("Rectum"), library.tumour_site("Prostate")
     for dose, count in ((3.0, 20), (1.8, 30), (6.0, 5), (2.0, 39)):
         plan = Prescription(courses=(Course(dose, count),), reference_dose=2.0)
-        result = compute(organ, tumour, plan, CORRECTED, library)
+        result = compute(organ, tumour, plan, ADJUSTED, library)
         for course in result.courses:
             assert course.eqd_oar == pytest.approx(
                 course.equivalent_fractions_oar * 2.0, rel=1e-12)
@@ -189,12 +191,12 @@ def test_corrected_equivalent_dose_is_fractions_times_reference_dose(library):
 
     # And the legacy convention deliberately does not satisfy it.
     plan = Prescription(courses=(Course(3.0, 20),), reference_dose=2.0)
-    legacy = compute(organ, tumour, plan, EXACT, library).courses[0]
+    legacy = compute(organ, tumour, plan, LEGACY, library).courses[0]
     assert legacy.eqd_oar != pytest.approx(
         legacy.equivalent_fractions_oar * 2.0, rel=1e-6)
 
 
-def test_corrected_organ_dose_responds_to_the_kick_off_time(library):
+def test_adjusted_organ_dose_responds_to_the_kick_off_time(library):
     """Tk must enter the organ-at-risk calculation.
 
     The 2014 organ branch applies proliferation as a flat n * 7/5 * dprol and
@@ -210,11 +212,11 @@ def test_corrected_organ_dose_responds_to_the_kick_off_time(library):
         return compute(replace(organ, Tk=kick_off), tumour, plan, options,
                        library).eqd_oar_total
 
-    assert dose(CORRECTED, 100.0) != pytest.approx(dose(CORRECTED, 28.0), rel=1e-6)
-    assert dose(EXACT, 100.0) == pytest.approx(dose(EXACT, 28.0), rel=1e-15)
+    assert dose(ADJUSTED, 100.0) != pytest.approx(dose(ADJUSTED, 28.0), rel=1e-6)
+    assert dose(LEGACY, 100.0) == pytest.approx(dose(LEGACY, 28.0), rel=1e-15)
 
 
-def test_corrected_totals_do_not_depend_on_how_a_course_is_split(library):
+def test_adjusted_totals_do_not_depend_on_how_a_course_is_split(library):
     """Splitting a schedule into segments must not change the answer.
 
     This is not automatic. The equality is piecewise linear in the reference
@@ -227,24 +229,26 @@ def test_corrected_totals_do_not_depend_on_how_a_course_is_split(library):
     Tested away from the reference dose: at d = d_r the identity is trivial and an
     earlier version of this test passed while the property was broken.
     """
-    whole = _totals(library, (Course(3.0, 40),), CORRECTED)
+    whole = _totals(library, (Course(3.0, 40),), ADJUSTED)
     for split in ((Course(3.0, 20), Course(3.0, 20)),
                   tuple(Course(3.0, 10) for _ in range(4)),
                   (Course(3.0, 5), Course(3.0, 15), Course(3.0, 20))):
-        assert _totals(library, split, CORRECTED) == pytest.approx(whole, rel=1e-12)
+        assert _totals(library, split, ADJUSTED) == pytest.approx(whole, rel=1e-12)
 
     # Mixed fraction sizes, where the kick-off falls inside the second course.
-    mixed = _totals(library, (Course(2.0, 20), Course(3.0, 10)), CORRECTED)
+    mixed = _totals(library, (Course(2.0, 20), Course(3.0, 10)), ADJUSTED)
     assert _totals(library, (Course(2.0, 10), Course(2.0, 10), Course(3.0, 10)),
-                   CORRECTED) == pytest.approx(mixed, rel=1e-12)
+                   ADJUSTED) == pytest.approx(mixed, rel=1e-12)
 
-    # The legacy convention is what it is, and this pins the size of the gap.
-    legacy_whole = _totals(library, (Course(3.0, 40),), EXACT)
-    legacy_split = _totals(library, (Course(3.0, 20), Course(3.0, 20)), EXACT)
-    assert legacy_split[0] - legacy_whole[0] == pytest.approx(0.6, abs=1e-9)
+    # Under the 2014 convention the same split moves the total, because the
+    # weekend staircase restarts at every course and Theta(40) = 54 against
+    # 2 * Theta(20) = 52. Pinned so that the size of the difference is on record.
+    legacy_whole = _totals(library, (Course(3.0, 40),), LEGACY)
+    legacy_split = _totals(library, (Course(3.0, 20), Course(3.0, 20)), LEGACY)
+    assert legacy_split[0] - legacy_whole[0] == pytest.approx(0.623, abs=1e-3)
 
 
-def test_corrected_calendar_halves_for_two_fractions_a_day(library):
+def test_adjusted_calendar_halves_for_two_fractions_a_day(library):
     """Both tissues must see the bifractionation, not just the repair term.
 
     The 2014 tumour branch computes its overall time as (n + g) * 7/5 from the
@@ -259,25 +263,25 @@ def test_corrected_calendar_halves_for_two_fractions_a_day(library):
         course = compute(organ, tumour, plan, options, library).courses[0]
         return course.overall_days_oar, course.overall_days_tumour
 
-    assert days(CORRECTED, False) == pytest.approx((56.0, 56.0))
-    assert days(CORRECTED, True) == pytest.approx((28.0, 28.0))
+    assert days(ADJUSTED, False) == pytest.approx((56.0, 56.0))
+    assert days(ADJUSTED, True) == pytest.approx((28.0, 28.0))
     # Legacy leaves the tumour calendar at the full fraction count.
-    assert days(EXACT, True)[1] == pytest.approx(56.0)
+    assert days(LEGACY, True)[1] == pytest.approx(56.0)
 
     # An odd count rounds the half day up: eleven fractions need six days.
     plan = Prescription(courses=(Course(2.5, 11),), reference_dose=2.0,
                         bifractionated=True)
-    course = compute(organ, tumour, plan, CORRECTED, library).courses[0]
+    course = compute(organ, tumour, plan, ADJUSTED, library).courses[0]
     assert course.overall_days_tumour == pytest.approx(6 * 7 / 5)
 
 
 def test_weekend_staircase_is_not_additive():
-    """Why the corrected convention cannot put the reference through Theta.
+    """Why the ADJUSTED convention cannot put the reference through Theta.
 
     The staircase is an integer calendar. Applied per course it double-counts the
     weekends at every boundary, and applied to a real-valued fraction count it
     makes the equivalence non-invertible. Its long-run rate, 7 days per 5
-    sessions, is what the corrected convention uses on both sides instead.
+    sessions, is what the ADJUSTED convention uses on both sides instead.
     """
     assert overall_time(40, TimeModel.STAIRCASE) == 54
     assert 2 * overall_time(20, TimeModel.STAIRCASE) == 52
@@ -301,7 +305,7 @@ def test_equivalent_dose_increases_with_delivered_dose(library):
     organ, tumour = library.organ("Rectum"), library.tumour_site("Prostate")
     doses = [compute(organ, tumour,
                      Prescription(courses=(Course(2.0, n),), reference_dose=2.0),
-                     EXACT, library).eqd_tumour_total
+                     LEGACY, library).eqd_tumour_total
              for n in range(1, 45)]
     assert all(b > a for a, b in zip(doses, doses[1:]))
 
@@ -333,7 +337,7 @@ def test_the_two_sides_use_different_calendar_models(library):
     for count in (10, 25, 35):
         result = compute(organ, tumour,
                          Prescription(courses=(Course(2.0, count),), reference_dose=2.0),
-                         EXACT, library)
+                         LEGACY, library)
         assert result.courses[0].overall_days_oar == pytest.approx(
             overall_time(count, TimeModel.STAIRCASE))
         assert result.courses[0].overall_days_tumour == pytest.approx(count * 7 / 5)
