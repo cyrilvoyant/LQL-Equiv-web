@@ -301,10 +301,8 @@ def figure_fractionation():
     left.set_ylabel("organ EQD2 (Gy)")
     right.set_ylabel("NTCP, %s (%%)" % organ.endpoint.lower())
     left.axhline(target_eqd, color=GREY, lw=0.8, ls="--", zorder=0)
-    left.text(0.99, 0.04, "dotted: the two randomised regimens\n"
-                          + "\n".join(n.replace("\n", " ") for _, _, n in trials),
-              transform=left.transAxes, fontsize=6.5, color=GREY,
-              ha="right", va="bottom", linespacing=1.5)
+    # The dotted verticals are identified in the caption rather than in the
+    # panel: any in-figure label large enough to read collides with a curve.
     panel_tag(left, "(a)  what the organ absorbs, target effect held fixed")
     panel_tag(right, "(b)  and what that costs in complication risk")
 
