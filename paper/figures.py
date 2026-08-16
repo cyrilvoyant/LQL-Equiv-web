@@ -94,7 +94,10 @@ def figure_equivalence():
             case = json.loads(line)
             if "error" in case:
                 continue
-            mine = replay(case, Options())
+            # The 2014 comparison must replay the 2014 behaviour. Passing
+            # Options() here silently compares the current algorithm instead,
+            # which is a different figure with the same caption.
+            mine = replay(case, Options.legacy_2014())
             for field in fields:
                 a, b = _number(case["out"].get(field)), mine.get(field)
                 if a is not None and b is not None:

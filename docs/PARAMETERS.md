@@ -1,6 +1,6 @@
 # Radiobiological parameters and their provenance
 
-The shipped library holds 34 organs at risk and 19 tumour sites. This document
+The shipped library holds 34 organs at risk and 20 tumour sites: the 19 transcribed from the 2014 release, plus a standard tumour with proliferation switched off. This document
 records where every value comes from and what is known about it.
 
 **Rule followed throughout this file: no value and no citation appears here
@@ -34,7 +34,7 @@ The parameters as published are described in:
 | `dt` | transition dose to the linear tail, Gy — equal to 2 α/β throughout | same |
 | `T_half` | sublethal damage repair half-time, hours | same |
 | `dprol` | dose consumed per day by proliferation, Gy/day — tabulated | derived as 0.693 / (α · Tp), except two sites where it is fixed at 0.3 |
-| `m` | **Lyman probit slope** (0.075 to 0.27) | **γ50, normalised slope of the control curve** (0.28 to 3.38) |
+| `m` | **Lyman dispersion parameter**, inversely related to the slope (0.075 to 0.27) | **γ50, normalised slope of the control curve** (0.28 to 3.38) |
 | `d50` | dose giving 50 % complication, Gy | TCD50, dose giving 50 % control, Gy |
 | `puns`, `alpha2` | radiation-induced cancer risk coefficients | not used |
 

@@ -131,7 +131,7 @@ over 10 554 searches.
 
 ```bash
 pytest                 # unit tests and the golden non-regression suite
-pytest -m slow         # plus the full grid-equivalence replay (needs numpy)
+pytest -m slow         # the grid-equivalence replay alone (needs numpy)
 ```
 
 ## What changed since 2014

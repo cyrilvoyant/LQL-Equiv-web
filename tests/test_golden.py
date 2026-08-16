@@ -85,3 +85,44 @@ def test_reference_cases(organ, tumour, dose, fractions, expected_oar):
         Options.legacy_2014(),
     )
     assert result.eqd_oar_total == pytest.approx(expected_oar, abs=5e-3)
+
+
+def test_the_manuscript_figure_replays_the_legacy_behaviour(golden_path):
+    """Figure 1 compares against the 2014 application, so it must run that mode.
+
+    The default options changed in August 2026 and this call did not, so the
+    figure silently began comparing the current algorithm against MATLAB while
+    its caption still quoted the legacy agreement: 92 % bit-identical printed
+    over a panel showing 52 %. Nothing failed, because nothing checked.
+
+    The three numbers the caption carries are asserted here against the dataset.
+    """
+    import pathlib
+
+    source = (pathlib.Path(__file__).resolve().parent.parent
+              / "paper" / "figures.py").read_text(encoding="utf-8")
+    assert "replay(case, Options.legacy_2014())" in source, (
+        "paper/figures.py must replay the 2014 behaviour for figure 1")
+
+    fields = ("eqdtotal", "eqdttotal", "eqds1", "eqds2", "eqds3",
+              "eqdt1", "eqdt2", "eqdt3")
+    options = Options.legacy_2014()
+    identical = total = 0
+    largest = 0.0
+    with golden_path.open(encoding="utf-8") as handle:
+        for line in handle:
+            case = json.loads(line)
+            if "error" in case:
+                continue
+            mine = replay(case, options)
+            for field in fields:
+                a, b = _number(case["out"].get(field)), mine.get(field)
+                if a is None or b is None:
+                    continue
+                total += 1
+                identical += a == b
+                largest = max(largest, abs(b - a))
+
+    assert total == 34418
+    assert identical / total == pytest.approx(0.920, abs=5e-4)
+    assert largest == pytest.approx(0.04, abs=5e-4)
