@@ -465,45 +465,42 @@ def main() -> None:
     unit_gy = "Gy"
     unit = f"Gy EQD{reference_dose:g}"
     columns = st.columns(4)
-    convention = (
-        "**Convention.** The equivalent dose is the dose of a reference schedule "
-        f"at {reference_dose:g} Gy per fraction carrying the same biologically "
-        "effective dose. That reference schedule has its own overall time and "
-        "therefore its own proliferation loss, so both sides of the equality are "
-        "time-corrected. A different and equally common convention divides this "
-        "schedule's BED by 1 + d/(α/β) and leaves the reference uncorrected; it "
-        "returns a different number. Neither is wrong, but they are not the same "
-        "quantity, and reporting one without naming it is how identical cases end "
-        "up with different doses."
+    solved = (
+        f"Solves BED({reference_dose:g} Gy, nᵣ) = BED(d, n) for nᵣ, "
+        f"then reports nᵣ × {reference_dose:g} Gy. Both schedules carry their own "
+        "overall time, so both lose dose to proliferation."
     )
     columns[0].metric(
         f"OAR — {oar.name}",
         "not computable" if not result.oar_total_valid
         else f"{result.eqd_oar_total:.2f} {unit_gy}",
-        help=f"Cumulative equivalent dose to the organ at risk, in {unit}. "
-             + convention.replace("**", ""),
+        help=f"{solved}\n\n"
+             "BED = n·d·[1 + (1+Hm)·d/(α/β)] − Dprol·T, and above the transition "
+             "dose the quadratic term becomes the linear tail. Van Dyk: the organ "
+             "recovers from day one, with no kick-off time.",
     )
     columns[1].metric(
         f"Target — {tum.name}",
         "not computable" if not result.tumour_total_valid
         else f"{result.eqd_tumour_total:.2f} {unit_gy}",
-        help=f"Cumulative equivalent dose to the target volume, in {unit}. "
-             + convention.replace("**", ""),
+        help=f"{solved}\n\n"
+             "BED = n·d·[1 + (1+Hm)·d/(α/β)] − Dprol·(T − Tk)₊, and above the "
+             "transition dose the quadratic term becomes the linear tail. Dale: "
+             "nothing is lost before the kick-off time Tk.",
     )
     columns[2].metric(
         "NTCP — Lyman probit",
         _format(result.ntcp_percent, " %"),
-        help="Normal tissue complication probability: the chance of the tabulated "
-             "complication at this equivalent dose, from the Lyman probit through "
-             f"D50 with slope m. Endpoint: {oar.endpoint or 'none tabulated'}.",
+        help="NTCP = ½·[1 + erf(u/√2)], u = (EQD − D50)/(m·D50).\n\n"
+             f"Endpoint: {oar.endpoint or 'none tabulated'}. A point estimate on "
+             "one dose, with no volume information: indicative only.",
     )
     columns[3].metric(
         "TCP — logistic in γ50",
         _format(result.tcp_percent, " %"),
-        help="Tumour control probability: the chance that no clonogenic cell "
-             "survives, so that the tumour is sterilised, at this equivalent dose. "
-             "Read off a sigmoid passing through TCD50, the dose controlling half "
-             "of tumours, with normalised slope γ50.",
+        help="TCP = 1/[1 + (TCD50/EQD)^(4·γ50)], the logistic form; the Poisson "
+             "alternative is 2^(−exp[e·γ50·(1 − EQD/TCD50)]).\n\n"
+             "Never validated against clinical outcome: indicative only.",
     )
 
     if show_band and spread > 0:

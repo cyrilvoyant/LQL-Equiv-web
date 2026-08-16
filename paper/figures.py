@@ -560,9 +560,24 @@ def figure_2014_difference():
               label=["one course", "two courses", "three courses"])
     left.axvline(0, color=RED, lw=1.2)
     left.set_yscale("log")
+    left.set_ylim(0.7, 10 ** (np.log10(max(1.0, left.get_ylim()[1])) + 1.6))
     left.set_xlabel("version 3.0 minus 2014 (Gy)")
     left.set_ylabel("plans")
     left.legend(loc="upper left")
+    # The sampling envelope, written on the figure rather than left to the
+    # caption: a reader should be able to see what was and was not drawn.
+    left.text(0.985, 0.97,
+              "drawn at random, seed 20260816\n"
+              f"1 to 3 successive courses\n"
+              f"{doses[0]:.0f} to {doses[-1]:.0f} Gy per fraction, "
+              f"{counts.min()} to {counts.max()} fractions\n"
+              "once and twice a day\n"
+              f"interruptions 0 to {max_gap} missed sessions\n"
+              f"{len(library.organ_names)} organs, "
+              f"{len(library.tumour_names)} target sites\n"
+              f"kept if {floor:g} $\\leq$ EQD2 $\\leq$ {ceiling:g} Gy",
+              transform=left.transAxes, fontsize=6, color="#4a4a4a",
+              ha="right", va="top", linespacing=1.45)
     panel_tag(left, f"(a)  organ at risk, {oar.size} plans")
 
     groups, ticks, colours = [], [], []
@@ -579,17 +594,21 @@ def figure_2014_difference():
                         flierprops=dict(markersize=1.2))
     for patch, colour in zip(box["boxes"], colours):
         patch.set_facecolor(colour)
-        patch.set_alpha(0.35)
+        patch.set_alpha(0.55)
         patch.set_edgecolor(colour)
     for median in box["medians"]:
-        median.set_color("#2a2a2a")
+        median.set_color("#1a1a1a")
+        median.set_linewidth(1.4)
     right.axhline(0, color=RED, lw=1.2)
     right.set_ylabel("version 3.0 minus 2014 (Gy)")
     right.tick_params(axis="x", labelsize=7)
-    right.text(0.25, 0.03, "organ at risk", transform=right.transAxes,
-               fontsize=7, color=BLUE, ha="center")
-    right.text(0.75, 0.03, "target", transform=right.transAxes,
-               fontsize=7, color=TEAL, ha="center")
+    right.axvline(3.5, color=GREY, lw=0.7, ls=":")
+    top = right.get_ylim()[1]
+    right.set_ylim(top=top * 1.22)
+    right.text(2.0, top * 1.10, "organ at risk", fontsize=7.5, color=BLUE,
+               ha="center", va="center")
+    right.text(5.0, top * 1.10, "target", fontsize=7.5, color=TEAL,
+               ha="center", va="center")
     panel_tag(right, "(b)  both tissues, by interruption and regime")
 
     fig.tight_layout()
