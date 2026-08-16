@@ -15,8 +15,11 @@ radiation-induced cancer risk, with corrections for incomplete inter-fraction
 repair, accelerated proliferation and treatment protraction.
 
 This is version 3.0, a complete reimplementation of the 2014 MATLAB application
-[`cyrilvoyant/LQ-Equiv`](https://github.com/cyrilvoyant/LQ-Equiv), validated case
-by case against it.
+[`cyrilvoyant/LQ-Equiv`](https://github.com/cyrilvoyant/LQ-Equiv), compared
+case by case against it over 4438 treatment schedules. It solves the equations
+that release was published with, which for the organ at risk is not what its
+source computed — see
+[`docs/COMPARISON-2014.md`](docs/COMPARISON-2014.md).
 
 > [!WARNING]
 > **For research and education only. Not intended for clinical use.**
@@ -44,7 +47,9 @@ courses separated by gaps, it computes:
 | Quantity | Model |
 | --- | --- |
 | Biologically effective dose | Linear-quadratic with the linear tail of Astrahan above the transition dose |
-| Proliferation | Dale, with a kick-off time and a daily dose consumption |
+| Proliferation, target | Dale: nothing lost before the kick-off time `Tk` |
+| Proliferation, organ at risk | Van Dyk: a recovered dose from the first day, no kick-off time |
+| Overall time | Five days a week, weekends and missed sessions included, one calendar for both tissues |
 | Two fractions a day | Thames' incomplete-repair correction, six-hour interval |
 | Equivalent dose | Dose in the chosen reference fractionation giving the same BED |
 | Complication probability | Lyman probit, organs at risk only |
@@ -105,13 +110,19 @@ halfway between two points of the 2014 search grid and the original result is
 settled by floating-point noise at the fifteenth decimal. The full analysis is
 in [`docs/COMPARISON-2014.md`](docs/COMPARISON-2014.md).
 
-**Which mode the application runs in.** The web interface solves the equivalent
-fraction count exactly and uses the closed form of the calendar staircase. The
-2014 behaviour — a search grid of hundredths of a fraction that stopped at 100,
-and a calendar model that contradicted itself past 86 fractions — is a
-validation concern, not a setting: it is reachable through `Options` in the
-library and is what the golden suite pins. Below 100 equivalent fractions the
-two differ by at most 0.005 reference fractions, or about 0.01 Gy at 2 Gy.
+**What this validates, and what it does not.** Agreeing with the 2014 application
+shows that the port is faithful; it cannot show that either is right. The
+software therefore also asserts properties of the equations themselves, with no
+reference implementation in the loop: continuity at the transition dose, the
+identity `EQD = n·d` at the reference fraction size, additivity across split
+courses, and the round trip — delivering the reported dose at the reference
+fraction size must reproduce the BED it replaced. That last one is what
+identified the organ-at-risk difference below.
+
+`Options.legacy_2014()` reproduces the 2014 behaviour, including its search grid
+of hundredths of a fraction stopping at 100 and its calendar contradiction past
+86 fractions. It exists for recomputing a result published before 2026 and for
+the non-regression suite; nothing else uses it.
 
 Separately, the closed-form search that replaces the original exhaustive scan is
 proved equivalent to it: [`tools/verify_grid_equivalence.py`](tools/verify_grid_equivalence.py)
@@ -126,9 +137,17 @@ pytest -m slow         # plus the full grid-equivalence replay (needs numpy)
 ## What changed since 2014
 
 Beyond the port itself, the reimplementation surfaced several defects in the
-original release, all documented and reproduced-by-default rather than silently
-corrected:
+original release. All are documented, and all remain reachable through
+`Options.legacy_2014()` rather than being silently corrected:
 
+- **The organ-at-risk equivalent dose did not satisfy its own definition.** The
+  source reported `n_r · d_r − (T − T_r) · dprol`, where the 2014 paper's
+  equation (12) defines it as `n_r · d_r`. The subtracted term charges a second
+  time a span the solved `n_r` had already balanced: for a rectum receiving
+  20 × 3 Gy, the reported 82.69 Gy delivered at 2 Gy per fraction carries a BED
+  of 107.74 Gy against the schedule's own 97.75 Gy. Version 3.0 reports 75.25 Gy
+  and the round trip closes. **This is the only one that changes an answer a
+  department would read.**
 - **Tumour control probability was never computed.** The library held dose-response
   parameters for eleven tumour sites that no code path used. They are γ50 and
   TCD50 values, not Lyman parameters — which is probably why they went unused.
@@ -139,8 +158,12 @@ corrected:
 - **Complication probability was reported as 100 % for tissues with no Lyman
   parameters**, through a division by zero. It is now reported as unavailable.
 
-See [`docs/COMPARISON-2014.md`](docs/COMPARISON-2014.md) for the quantified
-comparison and the improvement axes.
+What is *not* changed: the two tissues keep the two proliferation models the 2014
+paper gives them, Dale with a kick-off time for the target volume and Van Dyk
+without one for the organ at risk.
+
+See [`docs/COMPARISON-2014.md`](docs/COMPARISON-2014.md) for the arithmetic, the
+round-trip criterion and the size of the difference across 7850 schedules.
 
 ## Frequently asked questions
 
@@ -198,20 +221,37 @@ No. It is for research and education only, it is not a medical device, and it
 must not be used to plan, verify or modify a patient's treatment.
 
 **Is any data sent to a server?**
-No. The web version runs Python inside the browser through WebAssembly. Nothing
-entered into it leaves the machine.
+No computation happens on a server. The page embeds the model and fetches the
+version-pinned stlite and Pyodide runtime from a public CDN on first load, then
+runs everything locally. The network sees that the page was visited and never
+what was entered into it.
 
 **How is it related to LQ-Equiv?**
 [`cyrilvoyant/LQ-Equiv`](https://github.com/cyrilvoyant/LQ-Equiv) is the 2014
 MATLAB application, distributed as a Windows executable requiring the MATLAB
-Component Runtime. This repository is its successor: same model, same
-radiobiological library, reimplemented in Python and validated against it.
+Component Runtime. This repository is its successor: same models, same
+radiobiological library, reimplemented in Python.
+
+**Does it return the same numbers as LQ-Equiv?**
+For the target volume, yes. For the organ at risk, no, and deliberately. The 2014
+source reported `n_r · d_r − (T − T_r) · dprol`, where its own paper defines the
+equivalent dose as `n_r · d_r` (equation 12). The subtracted term charges a second
+time a span the solved `n_r` had already balanced, and the result does not satisfy
+the equality it comes from: for a rectum receiving 20 × 3 Gy the 2014 value of
+82.69 Gy, delivered at 2 Gy per fraction, carries a BED of 107.74 Gy against the
+schedule's own 97.75 Gy. Version 3.0 reports 75.25 Gy and the round trip closes.
+[`docs/COMPARISON-2014.md`](docs/COMPARISON-2014.md) gives the arithmetic and the
+size of the difference across 7850 schedules; `Options.legacy_2014()` recovers the
+2014 behaviour for anyone recomputing a published result.
 
 **Which model is used for each endpoint?**
-BED and equivalent dose use the linear-quadratic-linear model of Astrahan with
-the proliferation term of Dale and, for two fractions a day, the incomplete-repair
-correction of Thames. Complication probability uses the Lyman probit. Tumour
-control probability uses a logistic or Poisson sigmoid in γ50.
+BED and equivalent dose use the linear-quadratic-linear model of Astrahan and,
+for two fractions a day, the incomplete-repair correction of Thames.
+Proliferation follows Dale for the target volume, with a kick-off time, and Van
+Dyk for the organ at risk, without one — the two are different models, as the
+2014 paper sets out in its sections 3.1 and 3.2. Complication probability uses
+the Lyman probit. Tumour control probability uses a logistic or Poisson sigmoid
+in γ50.
 
 ## Citation
 
@@ -230,7 +270,7 @@ If you use this software, cite the methodology paper and the software (see
   linear-quadratic (LQ) and linear-quadratic-linear (LQL) dose models.
   *Clinical Oncology* 2025;45.
   [doi:10.1016/j.clon.2025.103893](https://doi.org/10.1016/j.clon.2025.103893)
-- This software: Voyant C, Julian D. LQL-Equiv-web: a validated Python and web
+- This software: Voyant C, Julian D. LQL-Equiv-web: a Python and web
   implementation of biologically equivalent dose calculation in radiotherapy
   (Version 3.0.0) [Computer software]. Zenodo, 2026.
   [doi:10.5281/zenodo.21948624](https://doi.org/10.5281/zenodo.21948624) —

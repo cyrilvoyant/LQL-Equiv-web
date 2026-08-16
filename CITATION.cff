@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below. If you use it in academic work, please also cite the associated methodology paper (see preferred-citation)."
-title: "LQL-Equiv-web: a validated Python and web implementation of biologically equivalent dose calculation in radiotherapy"
+title: "LQL-Equiv-web: a Python and web implementation of biologically equivalent dose calculation in radiotherapy"
 type: software
 
 authors:
@@ -43,8 +43,8 @@ abstract: >
   dose, equivalent dose in a reference fractionation, normal-tissue
   complication probability, tumour control probability and radiation-induced
   cancer risk, with corrections for incomplete inter-fraction repair,
-  repopulation and treatment protraction. It is a Python and browser-based
-  successor to the 2014 MATLAB application, validated case by case against it.
+  proliferation and treatment protraction. It is a Python and browser-based
+  successor to the 2014 MATLAB application, compared case by case against it.
   For research and education only; not a medical device.
 
 keywords:

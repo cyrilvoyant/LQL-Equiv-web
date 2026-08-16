@@ -296,7 +296,7 @@ Equations \eqref{eq:bed}--\eqref{eq:eqd} are what \texttt{LQL-Equiv}~3.0 solves.
 They are not what the 2014 application computed for the organ at risk. That
 release reported $n_r d_r - (T - T_r)\,D_\mathrm{prol}$, and the difference
 matters: for a rectum receiving 20~$\times$~3\,Gy it reported 82.69\,Gy where
-\eqref{eq:eqd} gives 74.81\,Gy. The reported value does not satisfy the equality
+\eqref{eq:eqd} gives 75.25\,Gy. The reported value does not satisfy the equality
 it is derived from. Delivering 82.69\,Gy at the reference fraction size returns a
 biologically effective dose of 107.74\,Gy against the schedule's own 97.75\,Gy,
 because proliferation is subtracted once inside the search and once again
@@ -557,15 +557,17 @@ leaves the total unchanged. The last is asserted at a fraction size away from
 $d_r$: at $d = d_r$ the identity holds trivially, and an earlier version of this
 test passed while the property was broken.
 
-The reimplementation also surfaced four defects in the 2014 release, all now
-documented and reproduced by default so that historical results remain
-obtainable. Equivalent doses beyond 100 reference fractions were reported at the
-search bound, silently, and stopped responding to added dose. Nine parameters
-were displayed differently from the values used in the computation, across seven
-tissues. The calendar model contradicts itself past 86 fractions, where two
-copies of the same weekend staircase diverge by up to a day. Complication
-probability was reported as 100\,\% for the five tissues that carry no Lyman
-parameters, through a division by zero; it is now reported as unavailable.
+The reimplementation surfaced four further defects in the 2014 release, all now
+documented and all reachable through \texttt{Options.legacy\_2014()} so that
+historical results remain obtainable. Equivalent doses beyond 100 reference
+fractions were reported at the search bound, silently, and stopped responding to
+added dose. Nine parameters were displayed differently from the values used in
+the computation, across seven tissues. The calendar model contradicts itself past
+86 fractions, where two copies of the same weekend staircase diverge by up to a
+day. Complication probability was reported as 100\,\% for the five tissues that
+carry no Lyman parameters, through a division by zero; it is now reported as
+unavailable. The fifth, and the only one that changes an answer a department
+would read, is the organ-at-risk equivalent dose of Appendix~\ref{app:2014}.
 
 \subsection{Limitations}
 
@@ -830,17 +832,25 @@ fraction. It then reports
 \;-\;\big[\Theta(n + g) - \Theta(n_r)\big]\,D_\mathrm{prol} .
 \label{eq:legacy-report}
 \end{equation}
-Two properties of this pair are worth stating. The kick-off time $T_k$ appears
-nowhere in \eqref{eq:legacy-search}, although it does appear in the tumour
-branch of the same routine. And the equivalent dose reported for the tumour,
-computed a few lines further down, is $n_r d_r$ with no second term.
+The kick-off time $T_k$ appears nowhere in \eqref{eq:legacy-search}, and that is
+correct: the 2014 paper gives the two tissues two different proliferation models
+and says so. Its equations (3) and (4) apply Dale to the target volume, with a
+kick-off time; its equations (6) and (7) apply Van Dyk to the organ at risk,
+where a recovered dose accrues from the first day and, in the paper's words, ``the
+kick-off time is no longer considered''. Version 3.0 keeps that distinction.
+
+What \eqref{eq:legacy-report} adds has no counterpart in the paper. Equation (12)
+there defines the equivalent dose as $2 n_0$, the fraction count times the
+reference dose, with nothing after it, and the equivalent dose the same routine
+reports for the tumour a few lines further down is exactly that.
 
 \subsection*{What version 3.0 computes}
 
-Equations \eqref{eq:bed}--\eqref{eq:eqd}, unchanged from their published form:
-proliferation through $(T-T_k)_{+}$ on both sides, the same elapsed calendar
-$T = \Theta(\cdot)$ on both sides, and
-$\mathrm{EQD}_{d_r} = n_r d_r$ with nothing added afterwards.
+Equations \eqref{eq:bed}--\eqref{eq:eqd}: the two published proliferation models,
+Dale for the target and Van Dyk for the organ; one elapsed calendar
+$T = \Theta(\cdot)$ shared by both sides of the equality, weekends and missed
+sessions included; and $\mathrm{EQD}_{d_r} = n_r d_r$ with nothing added
+afterwards.
 
 \subsection*{The criterion}
 
@@ -858,8 +868,8 @@ reproduces the biologically effective dose it replaced. For a rectum
  & \textbf{2014} & \textbf{version 3.0} \\
 \midrule
 BED of the schedule (Gy)                      & 97.75  & 97.75 \\
-Equivalent dose reported (Gy)                 & 82.69  & 74.81 \\
-\quad as fractions of 2\,Gy                   & 41.34  & 37.41 \\
+Equivalent dose reported (Gy)                 & 82.69  & 75.25 \\
+\quad as fractions of 2\,Gy                   & 41.34  & 37.63 \\
 BED of that schedule (Gy)                     & \textbf{107.74} & \textbf{97.75} \\
 \quad against 97.75\,Gy                       & $+9.97$ & $0.00$ \\
 \bottomrule
@@ -883,10 +893,9 @@ settled by any such test: both are defensible, and they never differ by more tha
 Version 3.0 uses the staircase throughout, because proliferation is charged per
 elapsed day and weekends are elapsed days: 40 sessions delivered Monday to
 Friday span 54 days, not the 56 the rate returns. The 2014 code used the rate
-inside \eqref{eq:legacy-search} and the staircase in
-\eqref{eq:legacy-report}, which is the mixture that made the double charge hard
-to see. Using the rate consistently instead would move the case above from
-74.81\,Gy to 75.03\,Gy.
+inside \eqref{eq:legacy-search} and the staircase in \eqref{eq:legacy-report},
+which is the mixture that made the double charge hard to see. Using the rate
+consistently instead would move the case above from 75.25\,Gy to 75.03\,Gy.
 
 The staircase costs something in return. It drops the reference BED by two days
 of proliferation at every weekend, so a target falling in that drop is met by two
@@ -907,11 +916,11 @@ between 2 and 100\,Gy EQD2.
 \toprule
 Version 3.0 minus 2014       & \textbf{Organ at risk} & \textbf{Target} \\
 \midrule
-Plans                        & 12\,625 & 14\,543 \\
+Plans                        & 12\,622 & 14\,543 \\
 Unchanged ($|\Delta| < 0.01$\,Gy) & 27.5\,\% & 42.8\,\% \\
-Median                       & $-1.00$\,Gy & $-0.00$\,Gy \\
-5th, 95th percentile         & $-17.22$, $+5.46$\,Gy & $-1.41$, $+6.20$\,Gy \\
-Range                        & $-46.8$ to $+35.2$\,Gy & $-3.8$ to $+36.7$\,Gy \\
+Median                       & $-0.67$\,Gy & $-0.00$\,Gy \\
+5th, 95th percentile         & $-12.51$, $+4.63$\,Gy & $-1.41$, $+6.20$\,Gy \\
+Range                        & $-44.3$ to $+35.2$\,Gy & $-3.8$ to $+36.7$\,Gy \\
 \bottomrule
 \end{tabular}
 \end{center}

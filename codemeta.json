@@ -4,7 +4,7 @@
   "identifier": "https://doi.org/10.5281/zenodo.21948624",
   "name": "LQL-Equiv",
   "alternateName": "LQL-Equiv-web",
-  "description": "Computes biologically equivalent doses in external-beam radiotherapy under the linear-quadratic-linear (LQL) model: biologically effective dose (BED), equivalent dose in a reference fractionation (EQD2), normal-tissue complication probability (NTCP), tumour control probability (TCP) and radiation-induced cancer risk, with corrections for incomplete inter-fraction repair, accelerated proliferation and treatment protraction. Python library and browser application, validated case by case against the 2014 MATLAB release. For research and education only; not a medical device.",
+  "description": "Computes biologically equivalent doses in external-beam radiotherapy under the linear-quadratic-linear (LQL) model: biologically effective dose (BED), equivalent dose in a reference fractionation (EQD2), normal-tissue complication probability (NTCP), tumour control probability (TCP) and radiation-induced cancer risk, with corrections for incomplete inter-fraction repair, accelerated proliferation and treatment protraction. Python library and browser application, compared case by case against the 2014 MATLAB release. For research and education only; not a medical device.",
   "version": "3.0.0",
   "softwareVersion": "3.0.0",
   "dateCreated": "2026-08-15",

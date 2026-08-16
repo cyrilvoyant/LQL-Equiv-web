@@ -154,32 +154,58 @@ Five tissues carry no Lyman parameters. The 2014 code divides by zero and
 displays 100 %, indistinguishable from a genuine certainty of complication.
 Version 3.0 reports the quantity as unavailable.
 
-### 5. Three time conventions the published equations do not describe
+### 5. The organ equivalent dose does not satisfy the equality it comes from
 
-Found in August 2026, after an independent review read the source against the
-manuscript. These are not rounding differences: they change the answer.
+Found in August 2026, when an independent review read the source against the
+paper it was published with. This is not a rounding difference.
 
-| | 2014 source, reproduced by `Convention.LEGACY` | Published equations, solved by `Convention.CORRECTED` |
+The paper defines the equivalent dose in its equation (12) as `EQD2 = 2 n0`,
+where `n0` minimises the cost function of equation (11). The source solves for
+`n0` — with proliferation charged on both sides, at the rate `7/5` — and then
+reports something else:
+
+```matlab
+EQDs2 = I2*0.01*dose1 - (eta2-eta1)*dprol;   % organ,  eqd_matlb.m line 3245
+EQDt2 = It2*0.01*dose1;                       % target, line 3276
+```
+
+`eta2` is the overall time of the schedule and `eta1` that of its equivalent,
+both from the weekend staircase. The subtraction charges the difference in span a
+second time, the root having already balanced it.
+
+**The test.** An equivalent dose has one defining property: delivered at the
+reference fraction size, it must reproduce the biologically effective dose it
+replaced. For a rectum (α/β = 3.9 Gy, `dprol` = 0.3 Gy/day) receiving 20 × 3 Gy:
+
+| | 2014 | version 3.0 |
 |---|---|---|
-| Organ proliferation | flat `n * 7/5 * dprol`, `Tk` never read | `dprol * (T - Tk)+`, as for the tumour |
-| Reported organ dose | `n_r * d_r - (T - T_r) * dprol` | `n_r * d_r` |
-| Tumour calendar | flat `(n + g) * 7/5`, blind to the weekend staircase and to two fractions a day | one absolute calendar at 7 days per 5 sessions, shared by both tissues |
+| BED of the schedule | 97.75 Gy | 97.75 Gy |
+| equivalent dose reported | 82.69 Gy | 75.25 Gy |
+| as fractions of 2 Gy | 41.34 | 37.63 |
+| BED of *that* schedule | **107.74 Gy** | **97.75 Gy** |
+| round trip closes | no, +9.97 Gy | yes, 0.00 Gy |
 
-The second is the largest. For a rectum receiving 20 × 3 Gy, `n_r * d_r` is
-75.03 Gy while 82.69 Gy is reported: a second time correction is applied on top
-of a root that already carried one. Two consequences follow. Splitting a
-40-fraction course into two courses of 20 adds 0.6 Gy from nowhere, because the
-weekend staircase restarts and `Θ(40) = 54` against `2 Θ(20) = 52`. And an organ
-whose proliferation begins on day 100 is charged as though it began on day one.
+Over 7850 deliverable schedules the round trip closes for 28.6 % of the 2014
+values and for all of version 3.0's. Splitting a 40-fraction course into two
+courses of 20 also moved the 2014 total by 0.6 Gy, the staircase restarting at
+each course with `Θ(40) = 54` against `2 Θ(20) = 52`; version 3.0 is additive.
 
-`LEGACY` remains the library default, so results published before 2026 stay
-reproducible, and it is what the 4438-schedule golden suite measures. `CORRECTED`
-is what the browser application runs. Four tests in `tests/test_analytic.py`
-separate them, each failing under `LEGACY` by construction. The corrected
-convention uses the continuous rate 7/5 rather than the integer staircase on both
-sides of the equality, because a staircase is not additive and cannot be inverted
-on the real-valued fraction count; the staircase is still reported as the nominal
-calendar.
+Of the 7.65 Gy the second term adds for this case, 7.36 Gy is the span already
+priced into `n0` and 0.30 Gy is a genuine refinement, from replacing the rate
+`7/5` by the real calendar. Version 3.0 keeps the refinement and drops the
+duplicate: both sides of the equality now run on the staircase, since
+proliferation is charged per elapsed day and weekends are elapsed days.
+
+**What is not changed.** The two tissues keep the two proliferation models the
+paper gives them. Equations (3) and (4) apply Dale to the target, with the
+kick-off time `Tk`. Equations (6) and (7) apply Van Dyk to the organ at risk,
+where — in the paper's words — *"the kick-off time is no longer considered, with
+the recovered dose being added instead"*. `Tk` is therefore read for the target
+and not for the organ, deliberately, and a test asserts both directions.
+
+`Options.legacy_2014()` reproduces the 2014 behaviour, for recomputing a result
+published before 2026 and for the 4438-schedule non-regression suite. Nothing
+else in the software uses it.
 
 ## Improvement axes
 

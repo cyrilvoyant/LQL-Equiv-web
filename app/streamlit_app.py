@@ -55,14 +55,14 @@ ZENODO_CONCEPT_DOI = "10.5281/zenodo.21948623"
 ZENODO_DOI_2014 = "10.5281/zenodo.16739883"
 
 SOFTWARE_CITATION = (
-    "Voyant, C., & Julian, D. (2026). LQL-Equiv-web: a validated Python and web "
+    "Voyant, C., & Julian, D. (2026). LQL-Equiv-web: a Python and web "
     "implementation of biologically equivalent dose calculation in radiotherapy "
     f"(Version 3.0.0) [Computer software]. Zenodo. https://doi.org/{ZENODO_DOI}"
 )
 
 SOFTWARE_BIBTEX = f"""@software{{voyant_lqlequiv_2026,
   author    = {{Voyant, Cyril and Julian, Daniel}},
-  title     = {{{{LQL-Equiv-web}}: a validated {{Python}} and web implementation of
+  title     = {{{{LQL-Equiv-web}}: a {{Python}} and web implementation of
                biologically equivalent dose calculation in radiotherapy}},
   year      = {{2026}},
   publisher = {{Zenodo}},
@@ -95,9 +95,9 @@ PARAMETER_MODELS = {
     "α (Gy⁻¹)": "Linear-quadratic",
     "Transition dose (Gy)": "Linear-quadratic-linear (Astrahan)",
     "T½ (h)": "Incomplete repair (Thames)",
-    "Tk (d)": "Proliferation (Dale)",
-    "Tp (d)": "Proliferation (Dale)",
-    "Dprol (Gy/d)": "Proliferation (Dale)",
+    "Tk (d)": "Proliferation (Dale) — target volume only",
+    "Tp (d)": "Proliferation (Dale for the target, Van Dyk for the organ)",
+    "Dprol (Gy/d)": "Proliferation (Dale for the target, Van Dyk for the organ)",
     "m": "NTCP probit (Lyman)",
     "D50 (Gy)": "NTCP probit (Lyman)",
     "γ50": "TCP sigmoid",
