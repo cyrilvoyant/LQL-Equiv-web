@@ -7,23 +7,29 @@ that the manuscript can be regenerated from the code rather than transcribed.
 
 Statistics are applied only where there is something to infer. The comparison
 against the reference implementation is an equivalence question over a
-population of schedules, so it is treated as one: two one-sided tests against a
-pre-stated margin, with a bootstrap interval. The sensitivity analysis
-propagates a real parameter uncertainty by Monte Carlo, so a confidence interval
-means something there. The model itself is deterministic; no interval is placed
-on its arithmetic.
+population of schedules, so it is treated as one, against a pre-stated margin
+and with a bootstrap interval. The sensitivity analysis propagates a real
+parameter uncertainty by Monte Carlo, so a confidence interval means something
+there. The model itself is deterministic; no interval is placed on its
+arithmetic.
+
+Each figure makes one point. A scatter of two implementations that agree to
+five decimals is a straight line and says nothing, so the agreement is shown
+as the distribution of the disagreement against the margin instead.
 """
 
 from __future__ import annotations
 
 import json
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
+from scipy.optimize import brentq
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
@@ -36,15 +42,23 @@ from lqlequiv.schedule import TimeModel  # noqa: E402
 OUT = Path(__file__).resolve().parent / "figures"
 RNG = np.random.default_rng(20260815)
 BOOTSTRAP = 10_000
+MARGIN = 0.05  # Gy; equivalence margin, far below any decision threshold
+SPREAD = 0.30  # 95 % of the alpha/beta draws fall within +/- this fraction
+DRAWS = 2000
+EXACT = Options(legacy_quantisation=False, time_model=TimeModel.STAIRCASE)
 
 mpl.rcParams.update({
-    "figure.dpi": 150, "savefig.dpi": 300, "savefig.bbox": "tight",
-    "font.family": "serif", "font.size": 9,
+    "figure.dpi": 150, "savefig.dpi": 400, "savefig.bbox": "tight",
+    "font.family": "serif", "mathtext.fontset": "dejavuserif",
+    "font.size": 8.5, "axes.labelsize": 8.5, "axes.titlesize": 9,
+    "xtick.labelsize": 8, "ytick.labelsize": 8,
     "axes.spines.top": False, "axes.spines.right": False,
-    "axes.grid": True, "grid.alpha": 0.25, "grid.linewidth": 0.5,
-    "legend.frameon": False, "lines.linewidth": 1.4,
+    "axes.grid": True, "grid.alpha": 0.20, "grid.linewidth": 0.4,
+    "axes.axisbelow": True, "legend.frameon": False, "legend.fontsize": 7.5,
+    "lines.linewidth": 1.5, "xtick.direction": "out", "ytick.direction": "out",
 })
-BLUE, TEAL, RED, GREY = "#3b6ea5", "#4aa3a3", "#d1495b", "#8a8f98"
+BLUE, TEAL, RED, GREY, SAND = "#3b6ea5", "#4aa3a3", "#d1495b", "#8a8f98", "#c47f2a"
+PURPLE = "#7b5ea7"
 
 
 def fmt_p(p: float) -> str:
@@ -52,7 +66,7 @@ def fmt_p(p: float) -> str:
     return "< 1e-4" if p < 1e-4 else f"= {p:.4f}"
 
 
-def bootstrap_ci(sample, statistic=np.median, level=0.95):
+def bootstrap_ci(sample, statistic=np.mean, level=0.95):
     """Percentile bootstrap interval for a statistic of one sample."""
     sample = np.asarray(sample, dtype=float)
     draws = RNG.choice(sample, size=(BOOTSTRAP, sample.size), replace=True)
@@ -61,13 +75,16 @@ def bootstrap_ci(sample, statistic=np.median, level=0.95):
     return statistic(sample), low, high
 
 
+def panel_tag(axis, text):
+    axis.set_title(text, loc="left", y=1.02, fontsize=9)
+
+
 # ---------------------------------------------------------------------------
-# Figure 1 -- agreement with the 2014 reference implementation
+# Figure 1 -- how large is the disagreement, and does it clear the margin
 # ---------------------------------------------------------------------------
 
-def figure_agreement():
+def figure_equivalence():
     golden = ROOT / "tests" / "data" / "golden.jsonl"
-    options = Options()
     fields = ("eqdtotal", "eqdttotal", "eqds1", "eqds2", "eqds3",
               "eqdt1", "eqdt2", "eqdt3")
     reference, ported = [], []
@@ -76,7 +93,7 @@ def figure_agreement():
             case = json.loads(line)
             if "error" in case:
                 continue
-            mine = replay(case, options)
+            mine = replay(case, Options())
             for field in fields:
                 a, b = _number(case["out"].get(field)), mine.get(field)
                 if a is not None and b is not None:
@@ -84,192 +101,363 @@ def figure_agreement():
                     ported.append(b)
     reference, ported = np.array(reference), np.array(ported)
     difference = ported - reference
-
-    # MARGIN is the largest difference that could not change any clinical
-    # reading; every decision threshold in this field is orders of magnitude
-    # coarser. Equivalence is declared only if the whole interval sits inside it.
-    MARGIN = 0.05  # Gy
+    absolute = np.abs(difference)
 
     rho, rho_p = stats.spearmanr(reference, ported)
     non_zero = difference[difference != 0]
     wilcoxon_p = stats.wilcoxon(non_zero)[1] if non_zero.size else 1.0
-    mean_abs, abs_low, abs_high = bootstrap_ci(np.abs(difference), np.mean)
-    bias, bias_low, bias_high = bootstrap_ci(difference, np.mean)
-    equivalent = bias_low > -MARGIN and bias_high < MARGIN
+    bias, low, high = bootstrap_ci(difference)
+    exact = float((difference == 0).mean())
 
-    print("=" * 72)
+    # The disagreement splits into two populations: rounding of the arithmetic,
+    # at the level of the double-precision epsilon, and the handful of cases
+    # where the 2014 grid search and the exact solver fall on either side of a
+    # tie. The cut is placed in the empty decades that separate them.
+    CUT = 1e-10
+    noise = absolute[(absolute > 0) & (absolute < CUT)]
+    real = absolute[absolute >= CUT]
+
+    print("=" * 74)
     print("FIGURE 1  equivalence with the 2014 reference")
-    print(f"  paired values                  n = {reference.size}")
-    print(f"  exactly equal                    {int((difference == 0).sum())} "
-          f"({100 * (difference == 0).mean():.3f} %)")
-    print(f"  Spearman rho                     {rho:.6f}  (p {fmt_p(rho_p)})")
-    print(f"  mean difference (bias)           {bias:+.3e} Gy "
-          f"[95 % CI {bias_low:+.3e}, {bias_high:+.3e}]")
-    print(f"  mean |difference|                {mean_abs:.3e} Gy "
-          f"[95 % CI {abs_low:.3e}, {abs_high:.3e}]")
-    print(f"  max |difference|                 {np.abs(difference).max():.3e} Gy")
-    print(f"  equivalence margin               +/- {MARGIN} Gy")
-    print(f"  interval inside the margin       {equivalent}")
-    print(f"  [Wilcoxon on the {non_zero.size} non-zero pairs gives p "
-          f"{fmt_p(wilcoxon_p)}; it detects the six-significant-digit rounding")
-    print("   the captured reference, not a disagreement, and is reported only")
-    print("   to be dismissed: the effect it finds is ~1e-5 Gy.]")
+    print(f"  paired equivalent doses          n = {reference.size}")
+    print(f"  identical                          {int((difference == 0).sum())} "
+          f"({100 * exact:.2f} %)")
+    print(f"  differ by less than 1e-10 Gy       {noise.size} "
+          f"({100 * noise.size / reference.size:.2f} %), arithmetic rounding")
+    print(f"  differ by more than 1e-10 Gy       {real.size} "
+          f"({100 * real.size / reference.size:.3f} %), grid ties, "
+          f"largest {real.max() if real.size else 0:.3f} Gy")
+    print(f"  within 0.005 Gy                    "
+          f"{100 * (absolute <= 0.005).mean():.2f} %")
+    print(f"  mean difference                    {bias:+.2e} Gy "
+          f"[95 % CI {low:+.2e}, {high:+.2e}]")
+    print(f"  largest deviation                  {absolute.max():.3f} Gy")
+    print(f"  equivalence margin                 +/- {MARGIN} Gy -> "
+          f"{'inside' if low > -MARGIN and high < MARGIN else 'OUTSIDE'}")
+    print(f"  Spearman rho                       {rho:.6f} (p {fmt_p(rho_p)})")
+    print(f"  Wilcoxon, {non_zero.size} non-zero pairs      p {fmt_p(wilcoxon_p)} "
+          f"(detects rounding, effect ~1e-5 Gy)")
 
-    fig, (left, right) = plt.subplots(1, 2, figsize=(7.2, 3.1))
+    fig, (left, right) = plt.subplots(1, 2, figsize=(7.1, 2.9))
 
-    left.scatter(reference, ported, s=3, alpha=0.25, color=BLUE, edgecolors="none")
-    limits = [0, max(reference.max(), ported.max()) * 1.02]
-    left.plot(limits, limits, color=GREY, lw=0.8, ls="--", zorder=0)
-    left.set_xlim(limits)
-    left.set_ylim(limits)
-    left.set_xlabel("2014 reference implementation (Gy)")
-    left.set_ylabel("LQL-Equiv 3.0 (Gy)")
-    left.set_title(f"(a)  $\\rho_s$ = {rho:.6f}, $n$ = {reference.size}", loc="left")
+    # (a) the two populations of disagreement, decade by decade
+    positive = absolute[absolute > 0]
+    bins = np.logspace(-17, np.log10(0.3), 55)
+    left.axvspan(1e-17, CUT, color=GREY, alpha=0.10, lw=0)
+    left.axvspan(CUT, 0.3, color=SAND, alpha=0.10, lw=0)
+    left.hist(positive, bins=bins, color=BLUE, alpha=0.9, edgecolor="none")
+    left.axvline(MARGIN, color=RED, lw=1.4, zorder=5)
+    left.set_xscale("log")
+    left.set_yscale("log")
+    left.set_xlim(1e-17, 0.3)
+    left.set_ylim(0.7, 4e3)
+    left.set_xlabel("absolute difference (Gy), zero excluded")
+    left.set_ylabel("number of paired values")
+    left.text(3e-14, 2.4e3, f"arithmetic rounding\n{noise.size} values",
+              fontsize=7, color="#4a4a4a", ha="center", va="top")
+    left.text(2e-3, 2.4e3, f"grid ties\n{real.size} values",
+              fontsize=7, color=SAND, ha="center", va="top")
+    left.text(MARGIN * 1.3, 1.0, "margin  $\\delta$ = 0.05 Gy", fontsize=7.5,
+              color=RED, rotation=90, va="bottom", ha="left")
+    panel_tag(left, f"(a)  {100 * exact:.1f} % of the {reference.size} values "
+                    "are bit-identical")
 
-    mean_pair = (reference + ported) / 2
-    right.scatter(mean_pair, difference, s=3, alpha=0.25, color=TEAL,
-                  edgecolors="none")
-    bias = np.mean(difference)
-    upper, lower = bias + 1.96 * difference.std(), bias - 1.96 * difference.std()
-    for value, style, label in ((bias, "-", "bias"),
-                                (upper, "--", "$\\pm$1.96 SD"), (lower, "--", None)):
-        right.axhline(value, color=RED, lw=0.9, ls=style, label=label)
-    right.set_xlabel("mean of the two implementations (Gy)")
-    right.set_ylabel("difference (Gy)")
-    right.set_title("(b)  agreement", loc="left")
-    right.legend(loc="upper right", fontsize=7)
+    # (b) the same evidence read as a cumulative claim
+    order = np.sort(np.maximum(absolute, 1e-17))
+    fraction = 100 * np.arange(1, order.size + 1) / order.size
+    right.step(order, fraction, where="post", color=BLUE, lw=1.6, zorder=4)
+    right.axvspan(MARGIN, 1.0, color=RED, alpha=0.08, lw=0)
+    right.axvline(MARGIN, color=RED, lw=1.4)
+    right.axhline(100 * exact, color=GREY, lw=0.8, ls=":")
+    right.set_xscale("log")
+    right.set_xlim(1e-17, 1.0)
+    right.set_ylim(90, 100.5)
+    right.set_xlabel("absolute difference (Gy)")
+    right.set_ylabel("cumulative share of values (%)")
+    right.text(2e-16, 100 * exact + 0.12, f"{100 * exact:.1f} % identical",
+               fontsize=7, color=GREY, va="bottom")
+    right.annotate("every value below\nthe margin",
+                   xy=(absolute.max(), 100), xytext=(1e-8, 95.6),
+                   fontsize=7.5, color=BLUE, ha="left",
+                   arrowprops=dict(arrowstyle="->", color=BLUE, lw=0.8))
+    right.text(MARGIN * 1.7, 90.6, "rejection\nregion", fontsize=7, color=RED)
+    panel_tag(right, "(b)  the whole distribution clears the margin")
 
     fig.tight_layout()
     fig.savefig(OUT / "fig1_agreement.pdf")
     plt.close(fig)
-    return dict(n=int(reference.size), rho=float(rho), wilcoxon_p=float(wilcoxon_p),
-                bias=float(bias), bias_ci=(float(bias_low), float(bias_high)),
-                mean_abs=float(mean_abs), margin=MARGIN, equivalent=bool(equivalent),
-                max_abs=float(np.abs(difference).max()),
-                exact=float((difference == 0).mean()))
 
 
 # ---------------------------------------------------------------------------
-# Figure 2 -- propagating the alpha/beta uncertainty
+# Figure 2 -- the fractionation question, as a department has to answer it
 # ---------------------------------------------------------------------------
 
-def figure_uncertainty():
-    """Monte Carlo over the published spread of alpha/beta.
+def figure_fractionation():
+    """Hypofractionation of a prostate treatment, at constant effect on the target.
 
-    This is the one place where a confidence interval is meaningful: the model
-    is deterministic, but its alpha/beta input is not known to better than the
-    spread reported across clinical studies, and that spread propagates.
+    The clinical question is not what a schedule scores in the abstract but what
+    it costs the organ at risk once the target effect has been held fixed. Every
+    point on the curves is a schedule solved by the software: the number of
+    fractions is adjusted so that the target receives 78 Gy EQD2 whatever the
+    fraction size, so the target effect, and with it the tumour control estimate,
+    is constant by construction and only the organ moves.
+
+    Three assumptions about the target are carried through, and they do not
+    agree. Under the plain linear-quadratic model with the low alpha/beta that
+    pooled prostate series support, hypofractionation lowers the dose to the
+    organ: that is the standard argument for prostate stereotactic treatment.
+    The same alpha/beta under the linear-quadratic-linear model reverses it,
+    because the transition dose is 2 alpha/beta and a low alpha/beta places the
+    transition below the fraction sizes at issue, so the linear tail removes the
+    advantage before it can be spent. The tabulated 3.1 Gy sits in between.
+
+    Whether the gain survives therefore depends on a transition dose for the
+    target that no series constrains well. The point is not to settle it but to
+    show that it is a decision, taken explicitly here rather than hidden in the
+    choice of formula. The bands are the +/-30 % uncertainty on the organ
+    alpha/beta, the prescription being held at whatever the target assumption
+    dictates.
     """
-    from dataclasses import replace as _replace
-
     library = load_library()
-    options = Options(legacy_quantisation=False, time_model=TimeModel.STAIRCASE)
     organ = library.organ("Rectum")
-    tumour = library.tumour_site("Prostate")
-    # van Leeuwen et al. report prostate alpha/beta clustering near 1-2 Gy where
-    # this library tabulates 3.1; the organ is sampled over the same relative
-    # spread. Log-normal keeps the ratio positive and its dispersion symmetric.
-    draws = 5000
-    spread = 0.30
-    tumour_ab = tumour.alpha_beta * np.exp(RNG.normal(0, spread / 1.96, draws))
-    organ_ab = organ.alpha_beta * np.exp(RNG.normal(0, spread / 1.96, draws))
+    prostate = library.tumour_site("Prostate")
+    target_eqd = 78.0
+    doses = np.arange(1.8, 9.001, 0.2)
+    factors = np.exp(RNG.normal(0, np.log(1 + SPREAD) / 1.96, DRAWS))
+    scenarios = (
+        ("LQ, $\\alpha/\\beta$ = 1.5 Gy (no linear tail)", 1.5, 1e6, TEAL),
+        ("LQL, $\\alpha/\\beta$ = 1.5 Gy, $d_t$ = 3.0 Gy", 1.5, 3.0, RED),
+        ("LQL, tabulated 3.1 Gy, $d_t$ = 6.2 Gy", 3.1, 6.2, BLUE),
+    )
 
-    schedules = {"conventional 39 x 2 Gy": (2.0, 39),
-                 "moderate 20 x 3 Gy": (3.0, 20),
-                 "ultra 5 x 7.25 Gy": (7.25, 5)}
+    def solve(dose, tumour):
+        """Fractions that put the target at 78 Gy EQD2 for this fraction size."""
+        def gap(n):
+            plan = Prescription(courses=(Course(float(dose), float(n)),),
+                                reference_dose=2.0)
+            return compute(organ, tumour, plan, EXACT,
+                           library).eqd_tumour_total - target_eqd
+        return brentq(gap, 1.0, 400.0, xtol=1e-6)
+
+    print("=" * 74)
+    print("FIGURE 2  hypofractionation at constant target effect")
+    print(f"  target held at {target_eqd:g} Gy EQD2, organ = {organ.name.lower()}"
+          f" ({organ.endpoint.lower()}, alpha/beta {organ.alpha_beta} Gy)")
+    print(f"  bands: {DRAWS} draws on the organ alpha/beta, log-normal, "
+          f"95 % within +/-{SPREAD:.0%}")
+
+    fig, (left, right) = plt.subplots(1, 2, figsize=(7.1, 2.9), sharex=True)
     summary = {}
-    fig, axes = plt.subplots(1, len(schedules), figsize=(7.2, 2.9), sharey=True)
-    for axis, (label, (dose, n)) in zip(axes, schedules.items()):
-        plan = Prescription(courses=(Course(dose, n),), reference_dose=2.0)
-        values = np.empty(draws)
-        for i in range(draws):
-            values[i] = compute(
-                _replace(organ, alpha_beta=organ_ab[i], dt=2 * organ_ab[i]),
-                _replace(tumour, alpha_beta=tumour_ab[i], dt=2 * tumour_ab[i]),
-                plan, options, library).eqd_oar_total
-        low, high = np.percentile(values, [2.5, 97.5])
-        nominal = compute(organ, tumour, plan, options, library).eqd_oar_total
-        rho, p = stats.spearmanr(organ_ab, values)
-        summary[label] = dict(nominal=float(nominal), low=float(low),
-                              high=float(high), rho=float(rho), p=float(p),
-                              width=float(high - low))
-        axis.hist(values, bins=45, color=BLUE, alpha=0.75, edgecolor="none")
-        axis.axvline(nominal, color=RED, lw=1.2)
-        axis.axvspan(low, high, color=GREY, alpha=0.18)
-        axis.set_title(label, fontsize=8, loc="left")
-        axis.set_xlabel("organ EQD2 (Gy)")
-    axes[0].set_ylabel("Monte Carlo draws")
 
-    print("=" * 72)
-    print("FIGURE 2  alpha/beta uncertainty propagated, rectum / prostate")
-    print(f"  {draws} draws, log-normal, 95 % of mass within +/-{spread:.0%}")
-    for label, s_ in summary.items():
-        print(f"  {label:24s} {s_['nominal']:6.2f} Gy "
-              f"[95 % CI {s_['low']:6.2f}, {s_['high']:6.2f}] "
-              f"width {s_['width']:5.2f} Gy | rho(a/b, EQD2) = {s_['rho']:+.3f} "
-              f"(p {fmt_p(s_['p'])})")
+    for label, alpha_beta, transition, colour in scenarios:
+        tumour = replace(prostate, alpha_beta=alpha_beta, dt=transition)
+        eqd = np.empty(doses.size)
+        ntcp = np.empty(doses.size)
+        eqd_cloud = np.empty((doses.size, DRAWS))
+        ntcp_cloud = np.empty((doses.size, DRAWS))
+        fractions = np.empty(doses.size)
+        for i, dose in enumerate(doses):
+            fractions[i] = solve(dose, tumour)
+            plan = Prescription(courses=(Course(float(dose), fractions[i]),),
+                                reference_dose=2.0)
+            result = compute(organ, tumour, plan, EXACT, library)
+            eqd[i], ntcp[i] = result.eqd_oar_total, result.ntcp_percent
+            for j, factor in enumerate(factors):
+                drawn = compute(
+                    replace(organ, alpha_beta=organ.alpha_beta * factor,
+                            dt=2 * organ.alpha_beta * factor),
+                    tumour, plan, EXACT, library)
+                eqd_cloud[i, j] = drawn.eqd_oar_total
+                ntcp_cloud[i, j] = drawn.ntcp_percent
+
+        eqd_low, eqd_high = np.percentile(eqd_cloud, [2.5, 97.5], axis=1)
+        ntcp_low, ntcp_high = np.percentile(ntcp_cloud, [2.5, 97.5], axis=1)
+        summary[label] = (fractions, eqd, ntcp)
+
+        left.fill_between(doses, eqd_low, eqd_high, color=colour, alpha=0.20,
+                          lw=0)
+        left.plot(doses, eqd, color=colour, label=label)
+        right.fill_between(doses, ntcp_low, ntcp_high, color=colour, alpha=0.20,
+                           lw=0)
+        right.plot(doses, ntcp, color=colour, label=label)
+
+        rho, p = stats.spearmanr(doses, eqd)
+        print(f"  {label}:")
+        for want in (2.0, 3.0, 6.0, 9.0):
+            i = int(np.argmin(np.abs(doses - want)))
+            print(f"    {doses[i]:4.1f} Gy x {fractions[i]:5.2f} "
+                  f"= {doses[i] * fractions[i]:5.1f} Gy   organ EQD2 "
+                  f"{eqd[i]:6.2f} [{eqd_low[i]:6.2f}, {eqd_high[i]:6.2f}]   "
+                  f"NTCP {ntcp[i]:5.1f} % [{ntcp_low[i]:5.1f}, {ntcp_high[i]:5.1f}]")
+        print(f"    Spearman rho(fraction size, organ EQD2) = {rho:+.3f} "
+              f"(p {fmt_p(p)})")
+
+    for axis in (left, right):
+        axis.axvline(2.0, color=GREY, lw=0.8, ls=":", zorder=0)
+        axis.set_xlabel("dose per fraction (Gy)")
+        axis.set_xlim(doses[0], doses[-1])
+    left.legend(loc="upper left")
+    right.legend(loc="lower left")
+    left.set_ylabel("organ EQD2 (Gy)")
+    right.set_ylabel("NTCP, %s (%%)" % organ.endpoint.lower())
+    left.axhline(target_eqd, color=GREY, lw=0.8, ls="--", zorder=0)
+    left.text(doses[-1], target_eqd - 2, "conventional 39 $\\times$ 2 Gy",
+              fontsize=7, color=GREY, ha="right", va="top")
+    panel_tag(left, "(a)  what the organ absorbs, target effect held fixed")
+    panel_tag(right, "(b)  and what that costs in complication risk")
+
+    # The single sentence the figure exists to support.
+    last = -1
+    lq_label, lql_label = scenarios[0][0], scenarios[1][0]
+    print(f"  at {doses[last]:.1f} Gy per fraction, same target effect and same "
+          f"target alpha/beta:")
+    print(f"    without the linear tail   organ EQD2 "
+          f"{summary[lq_label][1][last]:6.2f} Gy, NTCP "
+          f"{summary[lq_label][2][last]:5.1f} %")
+    print(f"    with it                   organ EQD2 "
+          f"{summary[lql_label][1][last]:6.2f} Gy, NTCP "
+          f"{summary[lql_label][2][last]:5.1f} %")
+    print("    the two models recommend opposite schedules from the same data")
 
     fig.tight_layout()
-    fig.savefig(OUT / "fig2_uncertainty.pdf")
+    fig.savefig(OUT / "fig2_fractionation.pdf")
     plt.close(fig)
-    return summary
 
 
 # ---------------------------------------------------------------------------
-# Figure 3 -- where the linear tail changes the answer
+# Figure 3 -- what the linear tail changes, and for which tissues
 # ---------------------------------------------------------------------------
 
 def figure_lql():
     library = load_library()
-    options = Options(legacy_quantisation=False, time_model=TimeModel.STAIRCASE)
-    organ = library.organ("Spinal cord")
     tumour = library.tumour_site("Standard tumour, no proliferation")
-    doses = np.arange(1.0, 15.01, 0.25)
+    doses = np.arange(1.0, 15.001, 0.25)
     total = 60.0
 
-    lql, lq = [], []
-    for dose in doses:
-        plan = Prescription(courses=(Course(float(dose), total / dose),),
-                            reference_dose=2.0)
-        lql.append(compute(organ, tumour, plan, options, library).eqd_oar_total)
-        # Pure linear-quadratic: the transition dose pushed out of range.
-        from dataclasses import replace as _replace
-        lq.append(compute(_replace(organ, dt=1e6), tumour, plan,
-                          options, library).eqd_oar_total)
-    lql, lq = np.array(lql), np.array(lq)
-    relative = 100 * (lq - lql) / lql
+    draws = 400
+    factors = np.exp(RNG.normal(0, np.log(1 + SPREAD) / 1.96, draws))
 
-    print("=" * 72)
+    def curve(organ, linear_tail=True, factor=1.0):
+        """Equivalent dose against fraction size, at constant total dose.
+
+        Proliferation is switched off on both tissues so that the curves isolate
+        the fractionation effect. Left on, the overall time varies with the
+        fraction size and mixes a second effect into the comparison; for the
+        lung it is large enough to cancel the whole equivalent dose at 1 Gy per
+        fraction, which says nothing about the linear tail.
+
+        ``factor`` scales alpha/beta, and with it the transition dose, so that
+        the same +/-30 % uncertainty as in figure 2 can be carried through.
+        """
+        alpha_beta = organ.alpha_beta * factor
+        organ = replace(organ, dprol_override=0.0, alpha_beta=alpha_beta,
+                        dt=(2 * alpha_beta if linear_tail else 1e6))
+        values = []
+        for dose in doses:
+            plan = Prescription(courses=(Course(float(dose), total / dose),),
+                                reference_dose=2.0)
+            values.append(compute(organ, tumour, plan, EXACT,
+                                  library).eqd_oar_total)
+        return np.array(values)
+
+    def band(organ, linear_tail=True):
+        """Nominal curve and the 95 % interval it inherits from alpha/beta."""
+        cloud = np.array([curve(organ, linear_tail, f) for f in factors])
+        low, high = np.percentile(cloud, [2.5, 97.5], axis=0)
+        return curve(organ, linear_tail), low, high
+
+    cord = library.organ("Spinal cord")
+    lql, lql_low, lql_high = band(cord)
+    lq, lq_low, lq_high = band(cord, linear_tail=False)
+
+    print("=" * 74)
     print("FIGURE 3  linear-quadratic against linear-quadratic-linear")
-    print(f"  transition dose of the spinal cord  {organ.dt:.1f} Gy")
-    for dose in (2.0, 6.0, 8.0, 10.0, 15.0):
-        i = int(np.argmin(np.abs(doses - dose)))
-        print(f"  {dose:5.1f} Gy/fraction : LQL {lql[i]:7.2f}  LQ {lq[i]:7.2f} "
-              f"({relative[i]:+5.1f} %)")
+    print(f"  spinal cord, transition dose {cord.dt:.1f} Gy, "
+          f"total physical dose {total:g} Gy, proliferation switched off")
+    print(f"  bands: {draws} draws, alpha/beta log-normal, "
+          f"95 % within +/-{SPREAD:.0%}, transition dose follows")
+    for target in (2.0, 6.0, 10.0, 15.0):
+        i = int(np.argmin(np.abs(doses - target)))
+        print(f"  {doses[i]:5.1f} Gy/fraction  "
+              f"LQL {lql[i]:7.2f} [{lql_low[i]:6.2f}, {lql_high[i]:6.2f}]  "
+              f"LQ {lq[i]:7.2f} [{lq_low[i]:6.2f}, {lq_high[i]:6.2f}]  "
+              f"{100 * (lq[i] - lql[i]) / lql[i]:+6.1f} %")
 
-    fig, axis = plt.subplots(figsize=(3.6, 3.0))
-    axis.plot(doses, lq, color=RED, ls="--", label="linear-quadratic")
-    axis.plot(doses, lql, color=BLUE, label="linear-quadratic-linear")
-    axis.axvline(organ.dt, color=GREY, lw=0.8, ls=":")
-    axis.annotate(f"$d_t$ = {organ.dt:.0f} Gy", xy=(organ.dt, axis.get_ylim()[1]),
-                  xytext=(organ.dt + 0.4, axis.get_ylim()[1] * 0.92),
-                  fontsize=7, color=GREY)
-    axis.set_xlabel("dose per fraction (Gy)")
-    axis.set_ylabel("organ equivalent dose (Gy EQD2)")
-    axis.legend(loc="upper left", fontsize=7)
+    fig, (left, right) = plt.subplots(1, 2, figsize=(7.1, 2.9), sharex=True)
+
+    left.fill_between(doses, lql, lq, color=GREY, alpha=0.10, lw=0,
+                      label="excess attributed by LQ")
+    left.fill_between(doses, lq_low, lq_high, color=RED, alpha=0.20, lw=0)
+    left.fill_between(doses, lql_low, lql_high, color=BLUE, alpha=0.25, lw=0)
+    left.plot(doses, lq, color=RED, ls="--", label="linear-quadratic")
+    left.plot(doses, lql, color=BLUE, label="linear-quadratic-linear")
+    left.axvline(cord.dt, color=GREY, lw=0.8, ls=":", zorder=0)
+    left.text(cord.dt - 0.35, 40, f"$d_t$ = {cord.dt:.0f} Gy", fontsize=7,
+              color=GREY, rotation=90, ha="right", va="bottom")
+    left.set_xlabel("dose per fraction (Gy)")
+    left.set_ylabel("organ EQD2 (Gy)")
+    left.set_xlim(1, 15)
+    left.legend(loc="upper left")
+    panel_tag(left, "(a)  spinal cord, 60 Gy in every schedule")
+
+    # (b) the same quantity for every tissue in the library. The dispersion
+    # across tissues is far wider than the uncertainty on any one alpha/beta,
+    # so the tissues are drawn as a population rather than each with its band.
+    excesses = {}
+    for name in library.organ_names:
+        organ = library.organ(name)
+        tail = curve(organ, True)
+        excesses[name] = (100 * (curve(organ, False) - tail)
+                          / np.maximum(tail, 1e-9))
+    population = np.array([excesses[n] for n in library.organ_names])
+    median = np.median(population, axis=0)
+    q1, q3 = np.percentile(population, [25, 75], axis=0)
+
+    for values in population:
+        right.plot(doses, values, color=GREY, lw=0.5, alpha=0.35, zorder=1)
+    right.fill_between(doses, q1, q3, color=BLUE, alpha=0.18, lw=0, zorder=2,
+                       label="interquartile range")
+    right.plot(doses, median, color=BLUE, lw=1.8, zorder=4,
+               label=f"median of {len(library.organ_names)} tissues")
+
+    print(f"  excess by tissue, {len(library.organ_names)} tissues in the library:")
+    for want in (6.0, 10.0, 12.0, 15.0):
+        i = int(np.argmin(np.abs(doses - want)))
+        print(f"    {doses[i]:5.1f} Gy/fraction   median {median[i]:+6.1f} %   "
+              f"IQR [{q1[i]:+6.1f}, {q3[i]:+6.1f}]   "
+              f"range [{population[:, i].min():+6.1f}, "
+              f"{population[:, i].max():+6.1f}]")
+    for name, colour in (("Spinal cord", RED), ("Stomach", PURPLE)):
+        organ = library.organ(name)
+        right.plot(doses, excesses[name], color=colour, lw=1.4, zorder=5,
+                   label=f"{name.lower()}, $d_t$ = {organ.dt:.1f} Gy")
+        i = int(np.argmin(np.abs(doses - 12.0)))
+        print(f"    {name:14s} dt {organ.dt:5.1f} Gy   "
+              f"{excesses[name][i]:+6.1f} % at 12 Gy per fraction")
+    right.set_xlabel("dose per fraction (Gy)")
+    right.set_ylabel("dose attributed in excess by LQ (%)")
+    right.set_xlim(1, 15)
+    right.set_ylim(-3, 120)
+    above = int((population[:, -1] > 120).sum())
+    right.text(0.99, 0.99, f"{above} tissues with $d_t$ = 1.6 Gy\n"
+                            f"leave the axis, up to "
+                            f"{population[:, -1].max():.0f} %",
+               transform=right.transAxes, fontsize=7, color=GREY,
+               ha="right", va="top")
+    right.legend(loc="upper left")
+    panel_tag(right, "(b)  every tissue in the library")
+
     fig.tight_layout()
     fig.savefig(OUT / "fig3_lql.pdf")
     plt.close(fig)
-    return dict(dt=organ.dt, relative_at_10=float(
-        relative[int(np.argmin(np.abs(doses - 10.0)))]))
 
 
 def main() -> int:
     OUT.mkdir(exist_ok=True)
-    figure_agreement()
-    figure_uncertainty()
+    figure_equivalence()
+    figure_fractionation()
     figure_lql()
-    print("=" * 72)
+    print("=" * 74)
     print(f"figures written to {OUT}")
     return 0
 

@@ -6,6 +6,7 @@
 
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
+\usepackage[a4paper,top=2.4cm,bottom=2.4cm,left=2.4cm,right=2.4cm]{geometry}
 \usepackage{amsmath,amssymb}
 \usepackage{booktabs}
 \usepackage{graphicx}
@@ -523,64 +524,72 @@ interface names which one it reports.
 an equivalence, and the longer side loses more, so its effect changes sign with
 the schedule. For 20~$\times$~3\,Gy the standard tumour reaches 80.66\,Gy EQD2
 against 65.00\,Gy with proliferation switched off: the shorter schedule
-outruns repopulation and gains. For a schedule prolonged by a gap the ordering
+outruns proliferation and gains. For a schedule prolonged by a gap the ordering
 reverses, as above. Software that reports only a single number hides this.
 
-\paragraph{Parameter uncertainty grows with fraction size.} The tabulated
-$\alpha/\beta$ is not known to better than the spread reported across clinical
-studies \cite{vanleeuwen2018}. Propagating that spread by Monte Carlo, with
-$\alpha/\beta$ drawn log-normally so that 95\,\% of the mass lies within
-$\pm$30\,\% of the tabulated value and 5000 draws per schedule, gives the
-distributions of Fig.~\ref{fig:uncertainty} for a rectum/prostate pair:
+\paragraph{What hypofractionation costs the organ at risk.} A department does not
+compare schedules in the abstract. It fixes the effect on the target and asks
+what the change costs the organ. Figure~\ref{fig:fractionation} answers that for
+a prostate treatment: at every fraction size $d$ the number of fractions is
+solved so that the target receives 78\,Gy EQD2, so the control estimate is
+constant by construction and only the organ moves. The bands are a log-normal
+$\pm$30\,\% uncertainty on the organ $\alpha/\beta$, 2000 draws per schedule,
+that spread being the one reported across clinical series
+\cite{vanleeuwen2018,brenner2003}.
 
-\begin{center}
-\small
-\begin{tabular}{@{}lrr@{}}
-\toprule
-Schedule & Organ EQD2 [95\,\% CI] (Gy) & Width (Gy) \\
-\midrule
-39 $\times$ 2\,Gy      & 78.00 [78.00,\;78.00] & 0.00 \\
-20 $\times$ 3\,Gy      & 82.69 [80.76,\;84.75] & 3.99 \\
-5 $\times$ 7.25\,Gy    & 92.33 [84.83,\;96.79] & 11.96 \\
-\bottomrule
-\end{tabular}
-\end{center}
+The three assumptions plotted disagree, and the disagreement is the point. Under
+the pure linear-quadratic form with $\alpha/\beta = 1.5$\,Gy for the target --
+the low ratio that pooled prostate series support, and the usual argument for
+stereotactic treatment -- hypofractionation spares the rectum: 2.86~$\times$~9\,Gy
+delivers 76.00\,Gy EQD2 against 78.00\,Gy for 39~$\times$~2\,Gy, and the
+proctitis estimate falls from 43.4\,\% to 36.9\,\%. The same ratio under the
+linear-quadratic-linear form reverses it. The transition dose is
+$2\,\alpha/\beta$, so a low ratio places it at 3\,Gy, below every fraction size
+at issue; the linear tail then removes the advantage before it can be spent, and
+the same target effect costs 122.95\,Gy EQD2 with the complication estimate at
+its ceiling. The tabulated 3.1\,Gy sits between the two, at 103.08\,Gy and
+97.3\,\%.
 
-At the reference fraction size the interval collapses: equation~\eqref{eq:core}
-is then satisfied at $n_r = n$ whatever $\alpha/\beta$, so the parameter cannot
-matter. It matters increasingly as the schedule departs from it, reaching almost
-12\,Gy for an ultra-hypofractionated course, with
-$\rho_s(\alpha/\beta,\mathrm{EQD}) = -1.000$ ($p < 10^{-4}$). Ultra-hypofractionation
-is precisely where the parameter is least certain \cite{vanleeuwen2018,brenner2003}
-and where the model is applied with most confidence. For the prostate in
-particular, the tabulated ratio is 3.1\,Gy while published estimates cluster
-nearer 1--2\,Gy, a discrepancy wider than the band itself.
+Whether the therapeutic gain survives therefore rests on a transition dose for
+the target that no series constrains well. The software does not settle that
+question, and this is not a recommendation on prostate fractionation. It makes
+the assumption an input the user sets and sees, rather than a consequence of the
+formula chosen, which is what a nomogram or an unexamined spreadsheet hides.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\textwidth]{figures/fig2_uncertainty.pdf}
-\caption{Organ-at-risk equivalent dose under a log-normal $\pm$30\,\%
-uncertainty on $\alpha/\beta$ (5000 draws). Red line, tabulated value; shaded
-band, 95\,\% interval. The interval is degenerate at the reference fraction
-size and widens with it.}
-\label{fig:uncertainty}
+\includegraphics[width=\textwidth]{figures/fig2_fractionation.pdf}
+\caption{Hypofractionation of a prostate treatment at constant effect on the
+target. At every fraction size the number of fractions is solved so that the
+target receives 78\,Gy EQD2, so only the organ at risk moves. Bands, 95\,\%
+interval from a log-normal $\pm$30\,\% uncertainty on the organ $\alpha/\beta$
+(2000 draws). The two forms of the model recommend opposite schedules from the
+same target ratio.}
+\label{fig:fractionation}
 \end{figure}
 
 \paragraph{Where the linear tail changes the answer.} Holding total physical
-dose at 60\,Gy and varying fraction size, the pure linear-quadratic form and the
-linear-quadratic-linear form agree exactly up to the transition dose
-($d_t = 4$\,Gy for the spinal cord) and separate above it: the linear-quadratic
-form returns 9.1\,\% more equivalent dose at 6\,Gy per fraction, 42.9\,\% more at
-10\,Gy and 90.3\,\% more at 15\,Gy (Fig.~\ref{fig:lql}). In the stereotactic
-range the choice of formalism is no longer a detail
-\cite{astrahan2008,guckenberger2013,brown2014}.
+dose at 60\,Gy and varying fraction size, with proliferation switched off on
+both tissues so that the comparison isolates fractionation, the two forms agree
+exactly up to the transition dose ($d_t = 4$\,Gy for the spinal cord) and
+separate above it: the linear-quadratic form returns 9.1\,\% more equivalent dose
+at 6\,Gy per fraction, 42.9\,\% more at 10\,Gy and 90.3\,\% more at 15\,Gy
+(Fig.~\ref{fig:lql}a). Across the 34 organs of the library the excess at 12\,Gy
+per fraction has a median of 25.0\,\% and an interquartile range of
+10.8--46.0\,\%, reaching 233.7\,\% for the tissues of lowest transition dose and
+vanishing for those whose transition lies above the fraction size
+(Fig.~\ref{fig:lql}b). In the stereotactic range the choice of formalism is no
+longer a detail \cite{astrahan2008,guckenberger2013,brown2014}.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.52\textwidth]{figures/fig3_lql.pdf}
-\caption{Equivalent dose to the spinal cord at constant total physical dose,
-under the linear-quadratic and linear-quadratic-linear forms. Dotted line, the
-transition dose $d_t = 2\,\alpha/\beta$.}
+\includegraphics[width=\textwidth]{figures/fig3_lql.pdf}
+\caption{(a) Equivalent dose to the spinal cord at constant total physical dose
+under the two forms of the model; bands, $\pm$30\,\% on $\alpha/\beta$ with the
+transition dose following (400 draws); dotted line, the transition dose
+$d_t = 2\,\alpha/\beta$. (b) The dose the linear-quadratic form attributes in
+excess, for each of the 34 organs of the library: thin lines, individual
+tissues; band, interquartile range.}
 \label{fig:lql}
 \end{figure}
 
