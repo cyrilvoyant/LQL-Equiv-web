@@ -248,46 +248,60 @@ def test_adjusted_totals_do_not_depend_on_how_a_course_is_split(library):
     assert legacy_split[0] - legacy_whole[0] == pytest.approx(0.623, abs=1e-3)
 
 
-def test_adjusted_calendar_halves_for_two_fractions_a_day(library):
-    """Both tissues must see the bifractionation, not just the repair term.
+def test_overall_time_is_the_real_calendar(library):
+    """The reported span is elapsed calendar days, weekends and gaps included.
 
-    The 2014 tumour branch computes its overall time as (n + g) * 7/5 from the
-    fraction count, so forty fractions delivered twice a day span the same 56 days
-    as forty delivered once a day. Only the organ branch saw the compression.
+    Proliferation is charged per elapsed day, and cells do not rest at the
+    weekend, so the span that enters the equality has to be the real one. Forty
+    sessions run Monday to Friday span 54 days, not the 56 that the long-run rate
+    7n/5 would give. Two fractions a day halve the sessions, hence the days.
     """
     organ, tumour = library.organ("Rectum"), library.tumour_site("Prostate")
 
-    def days(options, bifractionated):
-        plan = Prescription(courses=(Course(2.5, 40),), reference_dose=2.0,
+    def days(options, bifractionated, count=40, gap=0.0):
+        plan = Prescription(courses=(Course(2.5, count, gap),), reference_dose=2.0,
                             bifractionated=bifractionated)
         course = compute(organ, tumour, plan, options, library).courses[0]
         return course.overall_days_oar, course.overall_days_tumour
 
-    assert days(ADJUSTED, False) == pytest.approx((56.0, 56.0))
-    assert days(ADJUSTED, True) == pytest.approx((28.0, 28.0))
-    # Legacy leaves the tumour calendar at the full fraction count.
+    assert days(ADJUSTED, False) == pytest.approx(
+        (overall_time(40, TimeModel.STAIRCASE),) * 2)
+    assert days(ADJUSTED, True) == pytest.approx(
+        (overall_time(20, TimeModel.STAIRCASE),) * 2)
+    assert days(ADJUSTED, False)[0] == 54.0
+    assert days(ADJUSTED, True)[0] == 26.0
+
+    # A gap is counted in missed sessions, so the weekends inside it are supplied
+    # by the staircase like any other: ten missed sessions add fourteen days.
+    assert days(ADJUSTED, False, gap=10.0)[0] - days(ADJUSTED, False)[0] == 14.0
+
+    # The 2014 tumour branch saw neither, computing (n + g) * 7/5 throughout.
     assert days(LEGACY, True)[1] == pytest.approx(56.0)
 
-    # An odd count rounds the half day up: eleven fractions need six days.
-    plan = Prescription(courses=(Course(2.5, 11),), reference_dose=2.0,
-                        bifractionated=True)
-    course = compute(organ, tumour, plan, ADJUSTED, library).courses[0]
-    assert course.overall_days_tumour == pytest.approx(6 * 7 / 5)
+    # An odd count needs the extra half day rounded up: eleven fractions, six
+    # sessions, and six sessions span six days since no weekend has fallen yet.
+    assert days(ADJUSTED, True, count=11)[1] == pytest.approx(
+        overall_time(6, TimeModel.STAIRCASE))
 
 
-def test_weekend_staircase_is_not_additive():
-    """Why the ADJUSTED convention cannot put the reference through Theta.
+def test_the_staircase_inverse_is_two_valued_and_the_shorter_is_reported():
+    """The price of the real calendar, stated rather than hidden.
 
-    The staircase is an integer calendar. Applied per course it double-counts the
-    weekends at every boundary, and applied to a real-valued fraction count it
-    makes the equivalence non-invertible. Its long-run rate, 7 days per 5
-    sessions, is what the ADJUSTED convention uses on both sides instead.
+    The staircase adds two days at every weekend, so the reference BED drops by
+    two days' worth of proliferation there and then resumes climbing. A target
+    falling in that drop is met by two fraction counts, one on each side of the
+    jump, and both are exact. The solver reports the shorter, so that the
+    equivalent dose is a function of its input. The ambiguity is bounded by the
+    drop divided by the per-fraction gain: at most a fraction or so.
     """
+    assert overall_time(5, TimeModel.STAIRCASE) == 5
+    assert overall_time(6, TimeModel.STAIRCASE) == 8
+    assert overall_time(20, TimeModel.STAIRCASE) == 26
     assert overall_time(40, TimeModel.STAIRCASE) == 54
-    assert 2 * overall_time(20, TimeModel.STAIRCASE) == 52
+    # Two days per weekend, and the rate 7/5 is its long-run slope.
     for sessions in (10, 20, 40, 80):
-        rate = sessions * 7 / 5
-        assert abs(overall_time(sessions, TimeModel.STAIRCASE) - rate) <= 2.0
+        assert abs(overall_time(sessions, TimeModel.STAIRCASE)
+                   - sessions * 7 / 5) <= 2.4
 
 
 def test_weekend_staircase_never_compresses_time():

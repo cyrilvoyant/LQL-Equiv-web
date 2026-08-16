@@ -33,7 +33,7 @@ import math
 from dataclasses import dataclass, field
 from enum import Enum
 
-from .schedule import TimeModel, course_days, overall_time
+from .schedule import TimeModel, course_days, overall_time, staircase_segments
 from .tissues import Library, Tissue, load_library
 
 #: Interval between the two daily fractions assumed by the incomplete-repair
@@ -641,6 +641,69 @@ def _sessions(course: Course, bifractionated: bool) -> float:
     return delivered + course.gap_days
 
 
+def _reference_fractions(
+    bed: float, reference_dose: float, sessions_before: float, tissue: Tissue,
+    gamma: float, dprol: float, model: TimeModel,
+) -> float:
+    """Reference fractions matching ``bed``, on the real weekend calendar.
+
+    Proliferation is charged per elapsed calendar day, weekends included, so the
+    reference schedule spans ``overall_time(n)`` days and not ``7n/5``. That
+    makes the equality a step function in ``n``, with no closed form over the
+    whole range. It has one on each segment between two weekends, where the
+    staircase is exactly ``n + offset``: the loss is then linear in ``n``, on
+    each side of the kick-off time, and the root follows. Every segment is
+    solved, the roots that fall outside their own segment are discarded, and the
+    survivor with the smallest residual is kept -- which also covers the case
+    where the target falls in one of the two-day gaps the staircase jumps over.
+    """
+    per_fraction = _lql_dose_term(reference_dose, tissue, gamma, 0.0)
+    best, best_residual = 0.0, math.inf
+
+    def residual(n: float) -> float:
+        days_before = overall_time(sessions_before, model)
+        span = overall_time(sessions_before + n, model) - days_before
+        return abs(
+            n * per_fraction
+            - _proliferation_loss(days_before, span, tissue, dprol)
+            - bed
+        )
+
+    low_bound, high_bound = _EXACT_TUMOUR_BOUNDS
+    days_before = overall_time(sessions_before, model)
+    already = (tissue.Tk - days_before) * _heaviside(tissue.Tk - days_before)
+    tail_slope = per_fraction - dprol
+
+    for low, high, offset in staircase_segments(sessions_before + 400.0):
+        # The segments are cut on the staircase argument, which is the running
+        # session count, so the interval on n is shifted by what came before.
+        low_n = max(low - sessions_before, low_bound)
+        high_n = min(high - sessions_before, high_bound)
+        if high_n < low_n:
+            continue
+        # Before the kick-off there is no loss; after it the loss is
+        # dprol * (span - already), and the span is affine in n on this segment.
+        candidates = [bed / per_fraction if per_fraction else 0.0]
+        if tail_slope:
+            constant = dprol * (sessions_before + offset - days_before - already)
+            candidates.append((bed + constant) / tail_slope)
+        # The boundaries too, for a target that falls inside one of the jumps.
+        candidates.extend((low_n, high_n))
+        for root in candidates:
+            n = min(max(root, low_n), high_n)
+            value = residual(n)
+            # The staircase drops the reference BED by two days' worth of
+            # proliferation at every weekend, so a target can be met by two
+            # different fraction counts, one on each side of a jump. Both are
+            # exact; the shorter is reported, so that the answer is a function.
+            if value < best_residual - 1e-9 or (
+                abs(value - best_residual) <= 1e-9 and n < best
+            ):
+                best, best_residual = n, value
+
+    return best
+
+
 def _compute_adjusted(
     oar: Tissue, tum: Tissue, prescription: Prescription, options: Options,
     library: Library, gamma: float,
@@ -650,42 +713,38 @@ def _compute_adjusted(
     Three things differ from ``Options.legacy_2014()``, and each of them is a
     place where the 2014 code and the equations it was published with disagree.
 
-    Delivered and reference schedules run on one absolute calendar, at the
-    continuous rate of 7 days per 5 treatment sessions. Both have to use the same
-    rate, or the two proliferation losses fail to cancel when the evaluated
-    schedule *is* the reference schedule and 39 fractions of 2 Gy stop returning
-    78 Gy. The integer weekend staircase cannot serve here: the equivalent
-    fraction count is a real number solved from an equality, and a staircase
-    makes that equality neither invertible nor additive. 7/5 is its exact
-    long-run rate, and it is what the 2014 tumour path already used. The
-    staircase remains available through :func:`~lqlequiv.schedule.overall_time`
-    as the nominal calendar a department would read off a wall.
+    Delivered and reference schedules run on one absolute calendar, the real one:
+    treatment five days a week, so ``n`` sessions span ``overall_time(n)`` days,
+    weekends included. Proliferation is charged per elapsed day, so it must be
+    the real calendar and not its ``7n/5`` long-run rate, which overstates the
+    span by up to two days. Both sides of the equality use it, or the two losses
+    fail to cancel when the evaluated schedule *is* the reference schedule and 39
+    fractions of 2 Gy stop returning 78 Gy.
 
     Sessions accumulate across courses rather than restarting, so forty fractions
-    in one course and twenty plus twenty span the same time. Both tissues use the
-    same proliferation term, switched on at their own kick-off time, and the
-    equivalent dose is the fraction count times the reference dose, with nothing
-    added afterwards.
+    in one course and twenty plus twenty span the same time, and a gap is counted
+    in missed sessions so that the weekends inside it are supplied by the
+    staircase itself. Both tissues use the same proliferation term, switched on
+    at their own kick-off time, and the equivalent dose is the fraction count
+    times the reference dose, with nothing added afterwards.
     """
     repair_oar = _incomplete_repair(oar) if prescription.bifractionated else 0.0
     repair_tum = _incomplete_repair(tum) if prescription.bifractionated else 0.0
     dprol = {"oar": oar.dprol, "tum": _tumour_dprol(tum)}
     reference = prescription.reference_dose
     bounds = _EXACT_TUMOUR_BOUNDS
-    exact = Options(legacy_quantisation=False, time_model=options.time_model,
-                    tcp_model=options.tcp_model)
+    model = options.time_model
 
     results: list[CourseResult] = []
     totals = {"oar": 0.0, "tum": 0.0}
-    reference_days = {"oar": 0.0, "tum": 0.0}
+    reference_sessions = {"oar": 0.0, "tum": 0.0}
     sessions_before = 0.0
-    delivered_before = 0.0
 
     for course in prescription.courses:
         empty = course.is_empty or reference == 0.0
         sessions_after = sessions_before + _sessions(course, prescription.bifractionated)
-        delivered_after = sessions_after * 7.0 / 5.0
-        days_of_course = delivered_after - delivered_before
+        delivered_before = overall_time(sessions_before, model)
+        days_of_course = overall_time(sessions_after, model) - delivered_before
 
         per_course: dict[str, tuple[float, float]] = {}
         for key, tissue, repair in (("oar", oar, repair_oar), ("tum", tum, repair_tum)):
@@ -696,19 +755,18 @@ def _compute_adjusted(
             if empty:
                 fractions = 0.0
             else:
-                fractions = _tumour_equivalent_fractions(
-                    bed, reference, reference_days[key], tissue, gamma,
-                    dprol[key], exact,
+                fractions = _reference_fractions(
+                    bed, reference, reference_sessions[key], tissue, gamma,
+                    dprol[key], model,
                 )
             eqd = fractions * reference
             if eqd + totals[key] < 0.0:
                 eqd = -totals[key]
             totals[key] += eqd
-            reference_days[key] += max(fractions, 0.0) * 7.0 / 5.0
+            reference_sessions[key] += max(fractions, 0.0)
             per_course[key] = (bed, fractions)
 
         sessions_before = sessions_after
-        delivered_before = delivered_after
         results.append(
             CourseResult(
                 bed_oar=per_course["oar"][0], eqd_oar=per_course["oar"][1] * reference,

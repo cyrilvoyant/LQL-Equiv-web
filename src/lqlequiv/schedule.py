@@ -77,6 +77,27 @@ def displayed_overall_time(n: float, model: TimeModel = TimeModel.LEGACY) -> flo
     return float(math.floor(n * 7.0 / 5.0))
 
 
+def staircase_segments(upper: float):
+    """The intervals on which the staircase is linear, with their offset.
+
+    ``overall_time`` adds a constant number of days within each interval and
+    jumps by two at every weekend boundary, so on ``[low, high)`` it is exactly
+    ``n + offset``. Solving an equivalence against a step function is otherwise
+    awkward; segment by segment it is linear and has a closed form.
+
+    Yields ``(low, high, offset)`` covering ``[0, upper]``.
+    """
+    # The first segment runs down through zero: a tumour equivalent may be
+    # negative, and below six sessions no weekend has occurred either way.
+    yield -1e9, float(_FIRST_STEP), 0.0
+    low = float(_FIRST_STEP)
+    offset = float(_DAYS_PER_STEP)
+    while low < upper:
+        yield low, low + _STEP_WIDTH, offset
+        low += _STEP_WIDTH
+        offset += _DAYS_PER_STEP
+
+
 def course_days(
     n_fractions: float,
     gap_days: float = 0.0,
