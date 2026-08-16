@@ -22,3 +22,6 @@ paper/*.blg
 paper/*.log
 paper/*.out
 paper/*.pdf
+paper/main.bbl
+paper/main.spl
+paper/*.log

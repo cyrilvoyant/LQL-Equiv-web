@@ -10,8 +10,9 @@
 \usepackage{booktabs}
 \usepackage{graphicx}
 \usepackage{url}
-\usepackage{orcidlink} % if unavailable, remove this line and the \orcidlink call
+% hyperref must come before orcidlink, which loads it without options.
 \usepackage[hidelinks]{hyperref}
+\usepackage{orcidlink} % if unavailable, remove this line and the \orcidlink call
 
 \journal{SoftwareX}
 
@@ -75,7 +76,7 @@ WebAssembly
 \begin{table}[h!]
 \centering
 \small
-\begin{tabular}{@{}llp{7.6cm}@{}}
+\begin{tabular}{@{}lp{4.6cm}p{7.0cm}@{}}
 \toprule
 \textbf{Nr} & \textbf{Code metadata description} & \textbf{Metadata} \\
 \midrule
@@ -485,15 +486,15 @@ schedule of 39~$\times$~2\,Gy with the rectum as organ at risk:
 \begin{verbatim}
 from lqlequiv import Course, Prescription, compute, load_library
 
-library = load_library()
-plan = Prescription(courses=(Course(dose_per_fraction=2.0, n_fractions=39),),
+lib = load_library()
+plan = Prescription(courses=(Course(2.0, 39),),
                     reference_dose=2.0)
-result = compute(library.organ("Rectum"),
-                 library.tumour_site("Prostate"), plan)
+res = compute(lib.organ("Rectum"),
+              lib.tumour_site("Prostate"), plan)
 
-result.eqd_oar_total     # 78.00 Gy EQD2 to the rectum
-result.ntcp_percent      # complication probability, proctitis
-result.tcp_percent       # tumour control probability
+res.eqd_oar_total   # 78.00 Gy EQD2 to the rectum
+res.ntcp_percent    # complication probability, proctitis
+res.tcp_percent     # tumour control probability
 \end{verbatim}
 
 \paragraph{Cost of an interruption.} A course of 25~$\times$~2\,Gy delivered to
