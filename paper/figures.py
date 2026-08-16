@@ -103,10 +103,6 @@ def figure_equivalence():
     difference = ported - reference
     absolute = np.abs(difference)
 
-    rho, rho_p = stats.spearmanr(reference, ported)
-    non_zero = difference[difference != 0]
-    wilcoxon_p = stats.wilcoxon(non_zero)[1] if non_zero.size else 1.0
-    bias, low, high = bootstrap_ci(difference)
     exact = float((difference == 0).mean())
 
     # The disagreement splits into two populations: rounding of the arithmetic,
@@ -129,14 +125,12 @@ def figure_equivalence():
           f"largest {real.max() if real.size else 0:.3f} Gy")
     print(f"  within 0.005 Gy                    "
           f"{100 * (absolute <= 0.005).mean():.2f} %")
-    print(f"  mean difference                    {bias:+.2e} Gy "
-          f"[95 % CI {low:+.2e}, {high:+.2e}]")
+    for q in (50, 95, 99, 99.9):
+        print(f"  {q:5.1f}th percentile of |diff|       "
+              f"{np.percentile(absolute, q):.3e} Gy")
     print(f"  largest deviation                  {absolute.max():.3f} Gy")
-    print(f"  equivalence margin                 +/- {MARGIN} Gy -> "
-          f"{'inside' if low > -MARGIN and high < MARGIN else 'OUTSIDE'}")
-    print(f"  Spearman rho                       {rho:.6f} (p {fmt_p(rho_p)})")
-    print(f"  Wilcoxon, {non_zero.size} non-zero pairs      p {fmt_p(wilcoxon_p)} "
-          f"(detects rounding, effect ~1e-5 Gy)")
+    print(f"  tolerance {MARGIN} Gy, values clearing  "
+          f"{int((absolute <= MARGIN).sum())} of {absolute.size}")
 
     fig, (left, right) = plt.subplots(1, 2, figsize=(7.1, 2.9))
 
@@ -157,12 +151,12 @@ def figure_equivalence():
               fontsize=7, color="#4a4a4a", ha="center", va="top")
     left.text(2e-3, 2.4e3, f"grid ties\n{real.size} values",
               fontsize=7, color=SAND, ha="center", va="top")
-    left.text(MARGIN * 1.3, 1.0, "margin  $\\delta$ = 0.05 Gy", fontsize=7.5,
+    left.text(MARGIN * 1.3, 1.0, "tolerance  $\\delta$ = 0.05 Gy", fontsize=7.5,
               color=RED, rotation=90, va="bottom", ha="left")
     panel_tag(left, f"(a)  {100 * exact:.1f} % of the {reference.size} values "
                     "are bit-identical")
 
-    # (b) the same evidence read as a cumulative claim
+    # (b) the same evidence read as a cumulative claim against the tolerance
     order = np.sort(np.maximum(absolute, 1e-17))
     fraction = 100 * np.arange(1, order.size + 1) / order.size
     right.step(order, fraction, where="post", color=BLUE, lw=1.6, zorder=4)
@@ -180,8 +174,8 @@ def figure_equivalence():
                    xy=(absolute.max(), 100), xytext=(1e-8, 95.6),
                    fontsize=7.5, color=BLUE, ha="left",
                    arrowprops=dict(arrowstyle="->", color=BLUE, lw=0.8))
-    right.text(MARGIN * 1.7, 90.6, "rejection\nregion", fontsize=7, color=RED)
-    panel_tag(right, "(b)  the whole distribution clears the margin")
+    right.text(MARGIN * 1.7, 90.6, "beyond\ntolerance", fontsize=7, color=RED)
+    panel_tag(right, "(b)  the whole distribution clears the tolerance")
 
     fig.tight_layout()
     fig.savefig(OUT / "fig1_agreement.pdf")
@@ -217,27 +211,36 @@ def figure_fractionation():
     choice of formula. The bands are the +/-30 % uncertainty on the organ
     alpha/beta, the prescription being held at whatever the target assumption
     dictates.
+
+    Every point is a deliverable schedule. The fraction count is swept over the
+    integers and the dose per fraction is solved, rather than the reverse, so no
+    curve passes through a fractional number of fractions. The two randomised
+    trials that settled prostate hypofractionation are marked for scale.
     """
     library = load_library()
     organ = library.organ("Rectum")
     prostate = library.tumour_site("Prostate")
     target_eqd = 78.0
-    doses = np.arange(1.8, 9.001, 0.2)
+    counts = np.arange(4, 40)
     factors = np.exp(RNG.normal(0, np.log(1 + SPREAD) / 1.96, DRAWS))
     scenarios = (
         ("LQ, $\\alpha/\\beta$ = 1.5 Gy (no linear tail)", 1.5, 1e6, TEAL),
         ("LQL, $\\alpha/\\beta$ = 1.5 Gy, $d_t$ = 3.0 Gy", 1.5, 3.0, RED),
         ("LQL, tabulated 3.1 Gy, $d_t$ = 6.2 Gy", 3.1, 6.2, BLUE),
     )
+    #: The regimens of the two trials that settled the question clinically,
+    #: quoted so that the reader can see which part of the axis is real.
+    trials = ((7, 6.1, "HYPO-RT-PC\n42.7 Gy / 7"),
+              (5, 7.25, "PACE-B\n36.25 Gy / 5"))
 
-    def solve(dose, tumour):
-        """Fractions that put the target at 78 Gy EQD2 for this fraction size."""
-        def gap(n):
-            plan = Prescription(courses=(Course(float(dose), float(n)),),
+    def solve(count, tumour):
+        """Fraction size that puts the target at 78 Gy EQD2 in ``count`` fractions."""
+        def gap(dose):
+            plan = Prescription(courses=(Course(float(dose), float(count)),),
                                 reference_dose=2.0)
             return compute(organ, tumour, plan, EXACT,
                            library).eqd_tumour_total - target_eqd
-        return brentq(gap, 1.0, 400.0, xtol=1e-6)
+        return brentq(gap, 0.5, 30.0, xtol=1e-9)
 
     print("=" * 74)
     print("FIGURE 2  hypofractionation at constant target effect")
@@ -251,14 +254,14 @@ def figure_fractionation():
 
     for label, alpha_beta, transition, colour in scenarios:
         tumour = replace(prostate, alpha_beta=alpha_beta, dt=transition)
-        eqd = np.empty(doses.size)
-        ntcp = np.empty(doses.size)
-        eqd_cloud = np.empty((doses.size, DRAWS))
-        ntcp_cloud = np.empty((doses.size, DRAWS))
-        fractions = np.empty(doses.size)
-        for i, dose in enumerate(doses):
-            fractions[i] = solve(dose, tumour)
-            plan = Prescription(courses=(Course(float(dose), fractions[i]),),
+        size = np.empty(counts.size)
+        eqd = np.empty(counts.size)
+        ntcp = np.empty(counts.size)
+        eqd_cloud = np.empty((counts.size, DRAWS))
+        ntcp_cloud = np.empty((counts.size, DRAWS))
+        for i, count in enumerate(counts):
+            size[i] = solve(count, tumour)
+            plan = Prescription(courses=(Course(size[i], float(count)),),
                                 reference_dose=2.0)
             result = compute(organ, tumour, plan, EXACT, library)
             eqd[i], ntcp[i] = result.eqd_oar_total, result.ntcp_percent
@@ -272,52 +275,51 @@ def figure_fractionation():
 
         eqd_low, eqd_high = np.percentile(eqd_cloud, [2.5, 97.5], axis=1)
         ntcp_low, ntcp_high = np.percentile(ntcp_cloud, [2.5, 97.5], axis=1)
-        summary[label] = (fractions, eqd, ntcp)
+        summary[label] = (size, eqd, ntcp)
 
-        left.fill_between(doses, eqd_low, eqd_high, color=colour, alpha=0.20,
-                          lw=0)
-        left.plot(doses, eqd, color=colour, label=label)
-        right.fill_between(doses, ntcp_low, ntcp_high, color=colour, alpha=0.20,
+        left.fill_between(size, eqd_low, eqd_high, color=colour, alpha=0.20, lw=0)
+        left.plot(size, eqd, color=colour, marker="o", ms=2.4, label=label)
+        right.fill_between(size, ntcp_low, ntcp_high, color=colour, alpha=0.20,
                            lw=0)
-        right.plot(doses, ntcp, color=colour, label=label)
+        right.plot(size, ntcp, color=colour, marker="o", ms=2.4, label=label)
 
-        rho, p = stats.spearmanr(doses, eqd)
         print(f"  {label}:")
-        for want in (2.0, 3.0, 6.0, 9.0):
-            i = int(np.argmin(np.abs(doses - want)))
-            print(f"    {doses[i]:4.1f} Gy x {fractions[i]:5.2f} "
-                  f"= {doses[i] * fractions[i]:5.1f} Gy   organ EQD2 "
+        for count in (39, 20, 7, 5):
+            i = int(np.argmin(np.abs(counts - count)))
+            print(f"    {counts[i]:2d} x {size[i]:5.2f} Gy "
+                  f"= {counts[i] * size[i]:5.1f} Gy   organ EQD2 "
                   f"{eqd[i]:6.2f} [{eqd_low[i]:6.2f}, {eqd_high[i]:6.2f}]   "
                   f"NTCP {ntcp[i]:5.1f} % [{ntcp_low[i]:5.1f}, {ntcp_high[i]:5.1f}]")
-        print(f"    Spearman rho(fraction size, organ EQD2) = {rho:+.3f} "
-              f"(p {fmt_p(p)})")
 
     for axis in (left, right):
-        axis.axvline(2.0, color=GREY, lw=0.8, ls=":", zorder=0)
-        axis.set_xlabel("dose per fraction (Gy)")
-        axis.set_xlim(doses[0], doses[-1])
+        axis.set_xlabel("dose per fraction (Gy), whole fractions only")
+        axis.set_xlim(1.8, 11.0)
+        for _, dose, _ in trials:
+            axis.axvline(dose, color=GREY, lw=0.7, ls=":", zorder=0)
     left.legend(loc="upper left")
-    right.legend(loc="lower left")
+    right.legend(loc="lower right")
     left.set_ylabel("organ EQD2 (Gy)")
     right.set_ylabel("NTCP, %s (%%)" % organ.endpoint.lower())
     left.axhline(target_eqd, color=GREY, lw=0.8, ls="--", zorder=0)
-    left.text(doses[-1], target_eqd - 2, "conventional 39 $\\times$ 2 Gy",
-              fontsize=7, color=GREY, ha="right", va="top")
+    left.text(0.99, 0.04, "dotted: the two randomised regimens\n"
+                          + "\n".join(n.replace("\n", " ") for _, _, n in trials),
+              transform=left.transAxes, fontsize=6.5, color=GREY,
+              ha="right", va="bottom", linespacing=1.5)
     panel_tag(left, "(a)  what the organ absorbs, target effect held fixed")
     panel_tag(right, "(b)  and what that costs in complication risk")
 
-    # The single sentence the figure exists to support.
-    last = -1
+    # The comparison the figure exists to support, at a schedule that was
+    # actually delivered in a randomised trial rather than at an axis endpoint.
     lq_label, lql_label = scenarios[0][0], scenarios[1][0]
-    print(f"  at {doses[last]:.1f} Gy per fraction, same target effect and same "
-          f"target alpha/beta:")
-    print(f"    without the linear tail   organ EQD2 "
-          f"{summary[lq_label][1][last]:6.2f} Gy, NTCP "
-          f"{summary[lq_label][2][last]:5.1f} %")
-    print(f"    with it                   organ EQD2 "
-          f"{summary[lql_label][1][last]:6.2f} Gy, NTCP "
-          f"{summary[lql_label][2][last]:5.1f} %")
-    print("    the two models recommend opposite schedules from the same data")
+    i = int(np.argmin(np.abs(counts - 5)))
+    print(f"  at 5 fractions, same target effect and same target alpha/beta:")
+    print(f"    without the linear tail   {summary[lq_label][0][i]:5.2f} Gy per "
+          f"fraction, organ EQD2 {summary[lq_label][1][i]:6.2f} Gy, NTCP "
+          f"{summary[lq_label][2][i]:5.1f} %")
+    print(f"    with it                   {summary[lql_label][0][i]:5.2f} Gy per "
+          f"fraction, organ EQD2 {summary[lql_label][1][i]:6.2f} Gy, NTCP "
+          f"{summary[lql_label][2][i]:5.1f} %")
+    print("    the two forms disagree on the sign of the effect, not its size")
 
     fig.tight_layout()
     fig.savefig(OUT / "fig2_fractionation.pdf")

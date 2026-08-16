@@ -14,7 +14,8 @@ import math
 import pytest
 
 from lqlequiv import Course, Options, Prescription, compute, load_library
-from lqlequiv.model import _incomplete_repair, _lql_dose_term, _tumour_dprol
+from lqlequiv.model import (BIFRACTION_INTERVAL_HOURS, _incomplete_repair,
+                            _lql_dose_term, _tumour_dprol)
 from lqlequiv.schedule import TimeModel, overall_time
 
 EXACT = Options(legacy_quantisation=False, time_model=TimeModel.STAIRCASE)
@@ -128,6 +129,82 @@ def test_incomplete_repair_vanishes_for_instant_repair(library):
               for h in (2.0, 1.0, 0.5, 0.1, 0.01)]
     assert all(b < a for a, b in zip(values, values[1:]))
     assert values[-1] == pytest.approx(0.0, abs=1e-6)
+
+
+def test_incomplete_repair_is_phi_for_two_fractions_a_day(library):
+    """Thames's general form collapses to a single exponential at m = 2.
+
+    For m fractions a day the correction is (2*phi/m)/(1-phi) * [m - (1-phi^m)/(1-phi)].
+    At m = 2 the bracket is 2 - (1 + phi) = 1 - phi, so the whole expression is
+    exactly phi. The manuscript prints the collapsed form; this pins that the
+    code evaluates it and not something else.
+
+    The decay constant is the rounded 0.693 the 2014 release used, not ln 2. The
+    difference reaches 0.4 % of phi at the shortest repair half-time in the
+    library, and it is preserved deliberately, as it is for Dprol.
+    """
+    from dataclasses import replace
+
+    for half_time in (0.25, 0.5, 0.8, 1.5, 3.0, 5.0):
+        tissue = replace(library.organ("Rectum"), T_half=half_time)
+        phi = math.exp(-0.693 * BIFRACTION_INTERVAL_HOURS / half_time)
+        assert _incomplete_repair(tissue) == pytest.approx(phi, rel=1e-12)
+        assert phi != pytest.approx(
+            2.0 ** (-BIFRACTION_INTERVAL_HOURS / half_time), rel=1e-6)
+        # And the general form it comes from, evaluated independently here.
+        general = ((2 * phi / 2) / (1 - phi)) * (2 - (1 - phi ** 2) / (1 - phi))
+        assert general == pytest.approx(phi, rel=1e-12)
+
+
+def test_splitting_a_course_leaves_the_total_unchanged(library):
+    """Equivalent doses add across courses, which is not automatic.
+
+    Equation (5) is piecewise linear in the reference fraction count, with a kink
+    where proliferation switches on, and the inverse of a nonlinear map is not
+    additive in general. It holds here only because the reference schedule is
+    continued across courses rather than restarted, each course being matched
+    against the segment that follows the ones already spent. If that carry-over
+    were dropped, proliferation would be subtracted afresh in every course and
+    these totals would separate.
+    """
+    organ = library.organ("Spinal cord")
+    tumour = library.tumour_site("Standard tumour")
+
+    def total(courses):
+        plan = Prescription(courses=courses, reference_dose=2.0)
+        result = compute(organ, tumour, plan, EXACT, library)
+        return result.eqd_oar_total, result.eqd_tumour_total
+
+    whole = total((Course(2.0, 40),))
+    assert total((Course(2.0, 20), Course(2.0, 20))) == pytest.approx(whole, rel=1e-12)
+    assert total(tuple(Course(2.0, 10) for _ in range(4))) == pytest.approx(
+        whole, rel=1e-12)
+
+    # Also with a fraction size that puts the schedule on the other branch, and
+    # with the two sizes mixed, where the kink falls inside the second course.
+    mixed = total((Course(2.0, 20), Course(3.0, 10)))
+    assert total((Course(2.0, 10), Course(2.0, 10), Course(3.0, 10))) == (
+        pytest.approx(mixed, rel=1e-12))
+
+
+def test_two_fractions_a_day_halve_the_treatment_days(library):
+    """Ten fractions delivered twice a day occupy five treatment days, not ten.
+
+    The weekend staircase is applied to treatment days, not to fractions. Feeding
+    it the fraction count directly would stretch a bifractionated course by the
+    length of a course twice as long.
+    """
+    from lqlequiv.schedule import course_days
+
+    for count in (10, 20, 30):
+        once = course_days(count, 0, False, TimeModel.STAIRCASE)
+        twice = course_days(count, 0, True, TimeModel.STAIRCASE)
+        assert twice == pytest.approx(
+            overall_time(count / 2, TimeModel.STAIRCASE))
+        assert twice < once
+    # Odd counts need the extra half day rounded up, not down.
+    assert course_days(11, 0, True, TimeModel.STAIRCASE) == pytest.approx(
+        overall_time(6, TimeModel.STAIRCASE))
 
 
 def test_weekend_staircase_never_compresses_time():
