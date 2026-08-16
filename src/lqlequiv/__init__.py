@@ -19,6 +19,7 @@ Example
 """
 
 from .model import (
+    Convention,
     Course,
     CourseResult,
     Options,
@@ -37,6 +38,7 @@ from .tissues import Library, Tissue, load_library
 __version__ = "3.0.0"
 
 __all__ = [
+    "Convention",
     "Course",
     "CourseResult",
     "Library",

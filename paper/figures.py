@@ -36,7 +36,8 @@ sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "tools"))
 
 from compare_with_2014 import _number, replay  # noqa: E402
-from lqlequiv import Course, Options, Prescription, compute, load_library  # noqa: E402
+from lqlequiv import (Convention, Course, Options, Prescription, compute,  # noqa: E402
+                      load_library)
 from lqlequiv.schedule import TimeModel  # noqa: E402
 
 OUT = Path(__file__).resolve().parent / "figures"
@@ -45,7 +46,13 @@ BOOTSTRAP = 10_000
 MARGIN = 0.05  # Gy; equivalence margin, far below any decision threshold
 SPREAD = 0.30  # 95 % of the alpha/beta draws fall within +/- this fraction
 DRAWS = 2000
-EXACT = Options(legacy_quantisation=False, time_model=TimeModel.STAIRCASE)
+#: Figure 1 compares version 3.0 against the 2014 application and therefore runs
+#: the legacy convention, which is what that comparison is about. Figures 2 and 3
+#: are statements about the model rather than about the port, so they run the
+#: corrected convention: the equations as published, additive across courses,
+#: with the equivalent dose equal to the fraction count times the reference dose.
+EXACT = Options(legacy_quantisation=False, time_model=TimeModel.STAIRCASE,
+                convention=Convention.CORRECTED)
 
 mpl.rcParams.update({
     "figure.dpi": 150, "savefig.dpi": 400, "savefig.bbox": "tight",

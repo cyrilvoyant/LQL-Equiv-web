@@ -205,6 +205,7 @@ browser network panel; the delivery script is part of the repository.
 Concurrent use is limited only by the number of visitors' own machines.
 
 \subsection{Formulation}
+\label{sec:formulation}
 
 Notation is fixed once and used throughout. A course delivers $n$ fractions of
 dose $d$ (Gy) and spans an overall time $T$ (days). The tissue is described by
@@ -291,48 +292,80 @@ and then reading
 \label{eq:eqd}
 \end{equation}
 
+Equations \eqref{eq:bed}--\eqref{eq:eqd} are what \texttt{LQL-Equiv}~3.0 solves,
+and they are not what the 2014 application solved. Its source imposes three
+conventions its published equations do not describe: the organ-at-risk
+proliferation loss is a flat $n\,(7/5)\,D_\mathrm{prol}$ that never reads $T_k$;
+the reported organ equivalent dose is not $n_r d_r$ but
+$n_r d_r - (T - T_r)\,D_\mathrm{prol}$, a second time correction laid on a root
+that already carried one; and the tumour calendar is a flat $(n+g)\,7/5$, blind
+to both the weekend staircase and two fractions a day. For a rectum receiving
+20~$\times$~3\,Gy the second of these is worth 7.65\,Gy, since $n_r d_r$ is
+75.03\,Gy while 82.69\,Gy is reported. The consequences are not cosmetic:
+splitting a 40-fraction course into two adds 0.6\,Gy from nowhere, and an organ
+whose proliferation starts on day 100 is charged as though it started on day one.
+
+Both are therefore available and neither is hidden. \texttt{Convention.LEGACY}
+reproduces the 2014 code and is the default, because reproducing published
+results is what it is for; it is the convention the validation of
+Section~\ref{sec:verification} measures. \texttt{Convention.CORRECTED} solves
+\eqref{eq:bed}--\eqref{eq:eqd} as printed, is additive across courses by
+construction, and is what the browser application runs and what
+Sections~\ref{sec:examples} onwards use. It is not expected to reproduce the 2014
+numbers, and it does not.
+
 Two points about \eqref{eq:core} are easy to miss and account for most of the
 disagreement between implementations. First, the reference schedule on the left
 carries its own overall time $T(n_r)$ and therefore its own proliferation loss;
 definitions that correct only the right-hand side answer a different question
-and return a different number. Second, $T$ is not $n$: treatment runs five days a week, and two fractions a day
-occupy half as many of them, so with $s$ the number of treatment days
+and return a different number. Second, $T$ is not $n$: treatment runs five days a week, and $m$ fractions a day
+occupy $\lceil n/m \rceil$ treatment sessions. Writing $s_j$ for the sessions of
+course $j$ and $g_j$ for the sessions missed before it, one absolute calendar
+serves both tissues and both sides of \eqref{eq:core},
 \begin{equation}
-T(n, g, m) \;=\; \Theta\!\left(s + g\right),
+T(x) \;=\; \frac{7}{5}\,x,
 \qquad
-s = \left\lceil \frac{n}{m} \right\rceil,
-\qquad
-\Theta(x) = x + 2\left(\left\lfloor \frac{x-6}{5} \right\rfloor + 1\right)
-\;\; \text{for } x \geq 6,
+x_j \;=\; \sum_{i \leq j}\left(\left\lceil \frac{n_i}{m} \right\rceil + g_i\right),
 \label{eq:time}
 \end{equation}
-and $\Theta(x)=x$ below six, where $g$ is the number of missed treatment
-sessions preceding the course. Ten fractions delivered twice a day therefore
-occupy $\Theta(5) = 5$ days, not $\Theta(10) = 12$. Because $g$ is counted in
-sessions and not in calendar days, weekends falling inside an interruption are
-supplied by $\Theta$ itself: seven missed sessions extend a 35-fraction course by
-eleven calendar days. The staircase assumes a course beginning on the first
-treatment day of a week and takes no account of public holidays; a course
-starting mid-week meets its first weekend earlier than \eqref{eq:time} places it.
+the course occupying the increment $T(x_j) - T(x_{j-1})$. Ten fractions delivered
+twice a day therefore occupy five sessions, not ten. Because $g$ is counted in
+sessions rather than in calendar days, weekends inside an interruption are
+supplied by the $7/5$ rate itself.
+
+The rate is used in place of an integer weekend staircase, and the choice is
+forced. A staircase is not additive, $\Theta(40) = 54$ against
+$2\,\Theta(20) = 52$, so splitting a course into two would manufacture two days
+of proliferation; and $n_r$ is a real number solved from an equality, which a
+step function makes neither invertible nor additive. The rate $7/5$ is the exact
+long-run slope of that staircase. The staircase remains available as the nominal
+calendar a department reads off a wall, and is reported as such. Neither model
+knows about public holidays or a course starting mid-week.
 
 For several successive courses indexed by $j$, the reference schedule is not
 restarted at each course. Writing $\tau_j$ for the elapsed reference time before
 course $j$, with $\tau_1 = 0$, the software solves
 \begin{equation}
-\mathrm{BED}\big(d_r,\,n_{r,j},\,\tau_j + T(n_{r,j})\big) - \mathrm{BED}\big(d_r,\,0,\,\tau_j\big)
-\;=\; \mathrm{BED}\big(d_j,\,n_j,\,T_j\big),
+\mathrm{BED}\big(d_r,\,n_{r,j},\,\tau_j\big)
+\;=\; \mathrm{BED}\big(d_j,\,n_j,\,T(x_j) - T(x_{j-1})\big),
 \qquad
-\tau_{j+1} = \tau_j + T(n_{r,j}),
+\tau_{j+1} = \tau_j + \frac{7}{5}\,n_{r,j},
 \label{eq:multi}
 \end{equation}
-so that each course is matched against the segment of one continuous reference
-schedule that follows the segments already spent. Proliferation is therefore
-subtracted once over the total elapsed time and never twice, and the equivalent
-doses add, $\mathrm{EQD} = \sum_j n_{r,j}\,d_r$. Additivity here is a property to
-be checked rather than assumed, because \eqref{eq:core} is piecewise linear in
-$n_r$ with a kink at $T_k$ and the inverse of a nonlinear function is not
-additive in general; \texttt{tests/test\_analytic.py} pins it by splitting
-schedules into two and four courses and requiring the totals to coincide.
+each course being matched against the segment of one continuous reference
+schedule that follows the segments already spent, both sides carrying the
+proliferation accumulated before them. Proliferation is therefore subtracted once
+over the total elapsed time and never twice, and the equivalent doses add,
+$\mathrm{EQD} = \sum_j n_{r,j}\,d_r$.
+
+Additivity is a property to be proved, not assumed: \eqref{eq:core} is piecewise
+linear in $n_r$ with a kink at $T_k$, and the inverse of a nonlinear map is not
+additive in general. It holds here because both calendars are linear in the
+session count, so the reference losses telescope,
+$\sum_j [\,G(\tau_{j+1}) - G(\tau_j)\,] = G(\tau_{J+1})$ with
+$\tau_{J+1} = \tfrac{7}{5}\sum_j n_{r,j}$, and the total depends on the courses
+only through that sum. \texttt{tests/test\_analytic.py} pins it at a fraction
+size away from $d_r$, where the identity is not already trivial.
 
 The two toxicity endpoints follow from the cumulative equivalent dose. The
 normal-tissue complication probability uses the Lyman probit \cite{lyman1985},
@@ -421,6 +454,7 @@ which is a claim about fidelity, and then checks the equations against closed
 forms, which is a claim about correctness. Neither is a clinical validation.
 
 \subsection{Numerical verification of version 3.0}
+\label{sec:verification}
 
 The 2014 application still runs under MATLAB R2025b and can be driven without a
 display. \texttt{tools/matlab/sweep.m} opens the figure invisibly, sets the
@@ -472,8 +506,8 @@ Largest single deviation                  & 0.04\,Gy \\
 Tolerance $\delta$, values clearing it    & 0.05\,Gy, 34\,418 of 34\,418 \\[0.5ex]
 Searches replayed against the full grid   & 10\,554 \\
 Disagreements with the exhaustive search  & 0 \\
-Closed-form tests, no reference in the loop & 13 \\
-Unit and non-regression tests             & 48 in total \\
+Closed-form tests, no reference in the loop & 16, of which 4 separate the two conventions \\
+Unit and non-regression tests             & 51 in total \\
 \bottomrule
 \end{tabular}
 \caption{Validation of version 3.0 against the 2014 reference implementation.
@@ -512,18 +546,23 @@ rather than next to a root. \texttt{tools/verify\_grid\_equivalence.py} replays
 the full grid for every case: 10\,554 searches, no disagreement.
 
 Neither check can establish that the equations are the intended ones, because
-both are anchored to the 2014 code. A third layer therefore evaluates the
+both are anchored to the 2014 code. That distinction is not academic: it is
+exactly how the three legacy conventions of Section~\ref{sec:formulation} escaped
+notice for twelve years, since a test that asks whether two implementations agree
+cannot ask whether either is right. A third layer therefore evaluates the
 formulation against values obtained by hand from
-\eqref{eq:dprol}--\eqref{eq:multi}, with no reference implementation in the loop:
-\texttt{tests/test\_analytic.py} pins that $\mathrm{EQD}_{d_r} = nd$ when
-$d = d_r$ and proliferation is off, that \eqref{eq:bed} is continuous at $d_t$
-with the slope \eqref{eq:continuity} requires, that $H_2$ equals $\varphi$ of
-\eqref{eq:h2} to machine precision, that the proliferation loss vanishes for
-$T \leq T_k$, that two fractions a day halve the treatment days of
-\eqref{eq:time}, and that splitting a course into two and four segments leaves
-the total unchanged as \eqref{eq:multi} requires. These thirteen checks would
-fail if the equations printed here and the equations executed ever diverged;
-they are why the claim of correctness is separable from the claim of fidelity.
+\eqref{eq:dprol}--\eqref{eq:multi}, with no reference implementation in the loop.
+\texttt{tests/test\_analytic.py} pins that $\mathrm{EQD}_{d_r} = n d$ when
+$d = d_r$, that \eqref{eq:bed} is continuous at $d_t$ with the slope
+\eqref{eq:continuity} requires, that $H_2$ equals $\varphi$ of \eqref{eq:h2} to
+machine precision, and that the proliferation loss vanishes for $T \leq T_k$.
+Four of the sixteen checks target the corrected convention specifically, and each
+of them fails under the legacy one: that the reported dose is $n_r d_r$ exactly,
+that the organ-at-risk result moves when $T_k$ moves, that both tissues see two
+fractions a day, and that splitting a course into two, three or four segments
+leaves the total unchanged. The last is asserted at a fraction size away from
+$d_r$: at $d = d_r$ the identity holds trivially, and an earlier version of this
+test passed while the property was broken.
 
 The reimplementation also surfaced four defects in the 2014 release, all now
 documented and reproduced by default so that historical results remain
@@ -625,28 +664,33 @@ Read at five fractions, the three assumptions disagree on the sign of the
 effect. Under the pure linear-quadratic form with $\alpha/\beta = 1.5$\,Gy for
 the target -- the low ratio pooled prostate series support, and the usual
 argument for stereotactic treatment -- 5~$\times$~6.65\,Gy is iso-effective on
-the target and spares the rectum, 79.55\,Gy EQD2 against 78.00\,Gy for
-39~$\times$~2\,Gy. The same ratio under the linear-quadratic-linear form
-requires 5~$\times$~8.42\,Gy and returns 118.93\,Gy. The transition dose is
-$2\,\alpha/\beta$, so a low ratio places it at 3\,Gy, below every fraction size
-at issue, and the linear tail removes the target's advantage before it can be
-spent. The tabulated 3.1\,Gy sits between them, at 5~$\times$~7.55\,Gy and
-99.27\,Gy.
+the target and lowers the organ dose to 62.51\,Gy EQD2 against 78.00\,Gy for
+39~$\times$~2\,Gy. The same ratio under the linear-quadratic-linear form requires
+5~$\times$~8.42\,Gy and returns 95.19\,Gy, above the conventional schedule
+instead of below it. The transition dose is $2\,\alpha/\beta$, so a low ratio
+places it at 3\,Gy, beneath every fraction size at issue, and the linear tail
+removes the target's advantage before it can be spent. The tabulated 3.1\,Gy sits
+between them, at 5~$\times$~7.55\,Gy and 78.61\,Gy, which is the conventional
+schedule to within a gray.
 
-This is a statement about three models, not about patients, and the trial
-evidence is the arbiter of the clinical question. HYPO-RT-PC randomised
-42.7\,Gy in 7 fractions against 78.0\,Gy in 39 and found non-inferior failure-free
-survival with comparable late toxicity \cite{widmark2019}; PACE-B randomised
-36.25\,Gy in 5 fractions and reached the same conclusion \cite{vanas2024}. It is
-worth recording that with the tabulated parameters the software returns
-7~$\times$~6.10\,Gy, that is 42.7\,Gy, as iso-effective to 78\,Gy in 39
-fractions -- the HYPO-RT-PC comparison exactly. Its absolute complication
-percentages, computed from a point dose with legacy parameters and no volume
-information, are not comparable with the toxicity those trials measured and
-should not be read as such. What the figure supports is narrower and is the
-reason the tool exists: the choice between LQ and LQL is not a detail of
-formalism but the largest single term in the answer, and a calculator that
-hides which one it used cannot be reconciled with another.
+This is a statement about three models and not about patients; the trial evidence
+is the arbiter of the clinical question. HYPO-RT-PC randomised 42.7\,Gy in 7
+fractions against 78.0\,Gy in 39 and found non-inferior failure-free survival,
+with early toxicity worse in the hypofractionated arm and late toxicity
+comparable \cite{widmark2019}. PACE-B randomised 36.25\,Gy in 5 fractions and
+also found non-inferior biochemical control, but with more grade~2 or worse
+genitourinary toxicity at five years, 26.9\,\% against 18.3\,\%
+\cite{vanas2024}; the two trials therefore agree on control and not on toxicity.
+Under the tabulated parameters the software puts the HYPO-RT-PC regimen at
+7~$\times$~6.10\,Gy, that is 42.7\,Gy, and returns 77.60\,Gy EQD2 to the organ
+against 78.00\,Gy for the conventional arm. That is a numerical coincidence of
+prescribed dose within one model and one parameter set, not a reproduction of the
+trial's endpoints; the software's complication percentages come from a point dose
+with legacy parameters and no volume information, and are not comparable with
+measured toxicity. What the figure supports is narrower and is the reason the tool
+exists: the choice between LQ and LQL is not a detail of formalism but the largest
+single term in the answer, and a calculator that hides which one it used cannot be
+reconciled with another.
 
 \begin{figure}[t]
 \centering

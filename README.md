@@ -20,8 +20,19 @@ by case against it.
 
 > [!WARNING]
 > **For research and education only. Not intended for clinical use.**
-> This software is not a medical device. It must not be used to plan, verify or
-> modify the treatment of a patient.
+> This software is not a medical device. Stated as a list rather than as a
+> generality, its outputs must not be used to choose or modify a prescription,
+> to compute the compensation for a real interruption, to sum dose in a
+> reirradiation decision, to accept or reject a treatment plan, to support a
+> consent discussion, or to predict complication or control probability for an
+> individual patient.
+>
+> The complication and control probabilities deserve a separate warning. They are
+> point estimates on a single equivalent dose, computed from the 2014 parameter
+> library whose Lyman values fall in the range of the 1991 Emami/Burman fits and
+> predate QUANTEC. They carry no volume information, and they have never been
+> validated against clinical outcome. Read them as illustrations of a model's
+> shape, never as a risk for a patient.
 
 ---
 

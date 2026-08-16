@@ -13,12 +13,15 @@ import math
 
 import pytest
 
-from lqlequiv import Course, Options, Prescription, compute, load_library
+from lqlequiv import (Convention, Course, Options, Prescription, compute,
+                      load_library)
 from lqlequiv.model import (BIFRACTION_INTERVAL_HOURS, _incomplete_repair,
                             _lql_dose_term, _tumour_dprol)
 from lqlequiv.schedule import TimeModel, overall_time
 
 EXACT = Options(legacy_quantisation=False, time_model=TimeModel.STAIRCASE)
+CORRECTED = Options(legacy_quantisation=False, time_model=TimeModel.STAIRCASE,
+                    convention=Convention.CORRECTED)
 
 
 @pytest.fixture(scope="module")
@@ -156,55 +159,131 @@ def test_incomplete_repair_is_phi_for_two_fractions_a_day(library):
         assert general == pytest.approx(phi, rel=1e-12)
 
 
-def test_splitting_a_course_leaves_the_total_unchanged(library):
-    """Equivalent doses add across courses, which is not automatic.
+def _totals(library, courses, options, bifractionated=False,
+            organ="Rectum", tumour="Prostate"):
+    plan = Prescription(courses=courses, reference_dose=2.0,
+                        bifractionated=bifractionated)
+    result = compute(library.organ(organ), library.tumour_site(tumour), plan,
+                     options, library)
+    return result.eqd_oar_total, result.eqd_tumour_total
 
-    Equation (5) is piecewise linear in the reference fraction count, with a kink
-    where proliferation switches on, and the inverse of a nonlinear map is not
-    additive in general. It holds here only because the reference schedule is
-    continued across courses rather than restarted, each course being matched
-    against the segment that follows the ones already spent. If that carry-over
-    were dropped, proliferation would be subtracted afresh in every course and
-    these totals would separate.
+
+def test_corrected_equivalent_dose_is_fractions_times_reference_dose(library):
+    """EQD = n_r * d_r, with nothing added afterwards.
+
+    The 2014 organ-at-risk branch reports n_r * d_r - (T_course - T_ref) * dprol,
+    a second time correction laid on top of a root that already carried one. That
+    is the behaviour LEGACY reproduces and it is not what the equations say. Under
+    CORRECTED the reported dose is the fraction count times the reference dose,
+    which is the identity every downstream reading depends on.
     """
-    organ = library.organ("Spinal cord")
-    tumour = library.tumour_site("Standard tumour")
+    organ, tumour = library.organ("Rectum"), library.tumour_site("Prostate")
+    for dose, count in ((3.0, 20), (1.8, 30), (6.0, 5), (2.0, 39)):
+        plan = Prescription(courses=(Course(dose, count),), reference_dose=2.0)
+        result = compute(organ, tumour, plan, CORRECTED, library)
+        for course in result.courses:
+            assert course.eqd_oar == pytest.approx(
+                course.equivalent_fractions_oar * 2.0, rel=1e-12)
+            assert course.eqd_tumour == pytest.approx(
+                course.equivalent_fractions_tumour * 2.0, rel=1e-12)
 
-    def total(courses):
-        plan = Prescription(courses=courses, reference_dose=2.0)
-        result = compute(organ, tumour, plan, EXACT, library)
-        return result.eqd_oar_total, result.eqd_tumour_total
-
-    whole = total((Course(2.0, 40),))
-    assert total((Course(2.0, 20), Course(2.0, 20))) == pytest.approx(whole, rel=1e-12)
-    assert total(tuple(Course(2.0, 10) for _ in range(4))) == pytest.approx(
-        whole, rel=1e-12)
-
-    # Also with a fraction size that puts the schedule on the other branch, and
-    # with the two sizes mixed, where the kink falls inside the second course.
-    mixed = total((Course(2.0, 20), Course(3.0, 10)))
-    assert total((Course(2.0, 10), Course(2.0, 10), Course(3.0, 10))) == (
-        pytest.approx(mixed, rel=1e-12))
+    # And the legacy convention deliberately does not satisfy it.
+    plan = Prescription(courses=(Course(3.0, 20),), reference_dose=2.0)
+    legacy = compute(organ, tumour, plan, EXACT, library).courses[0]
+    assert legacy.eqd_oar != pytest.approx(
+        legacy.equivalent_fractions_oar * 2.0, rel=1e-6)
 
 
-def test_two_fractions_a_day_halve_the_treatment_days(library):
-    """Ten fractions delivered twice a day occupy five treatment days, not ten.
+def test_corrected_organ_dose_responds_to_the_kick_off_time(library):
+    """Tk must enter the organ-at-risk calculation.
 
-    The weekend staircase is applied to treatment days, not to fractions. Feeding
-    it the fraction count directly would stretch a bifractionated course by the
-    length of a course twice as long.
+    The 2014 organ branch applies proliferation as a flat n * 7/5 * dprol and
+    never reads Tk, so an organ that starts proliferating on day 100 is charged
+    as though it started on day one.
     """
-    from lqlequiv.schedule import course_days
+    from dataclasses import replace
 
-    for count in (10, 20, 30):
-        once = course_days(count, 0, False, TimeModel.STAIRCASE)
-        twice = course_days(count, 0, True, TimeModel.STAIRCASE)
-        assert twice == pytest.approx(
-            overall_time(count / 2, TimeModel.STAIRCASE))
-        assert twice < once
-    # Odd counts need the extra half day rounded up, not down.
-    assert course_days(11, 0, True, TimeModel.STAIRCASE) == pytest.approx(
-        overall_time(6, TimeModel.STAIRCASE))
+    organ, tumour = library.organ("Rectum"), library.tumour_site("Prostate")
+    plan = Prescription(courses=(Course(3.0, 20),), reference_dose=2.0)
+
+    def dose(options, kick_off):
+        return compute(replace(organ, Tk=kick_off), tumour, plan, options,
+                       library).eqd_oar_total
+
+    assert dose(CORRECTED, 100.0) != pytest.approx(dose(CORRECTED, 28.0), rel=1e-6)
+    assert dose(EXACT, 100.0) == pytest.approx(dose(EXACT, 28.0), rel=1e-15)
+
+
+def test_corrected_totals_do_not_depend_on_how_a_course_is_split(library):
+    """Splitting a schedule into segments must not change the answer.
+
+    This is not automatic. The equality is piecewise linear in the reference
+    fraction count and the inverse of a nonlinear map is not additive, so it holds
+    only because both schedules advance on one absolute calendar at the same rate
+    and the reference is continued rather than restarted. The legacy convention
+    restarts the weekend staircase at every course, and since Theta(40) = 54 while
+    2 * Theta(20) = 52, two days of proliferation appear from nowhere.
+
+    Tested away from the reference dose: at d = d_r the identity is trivial and an
+    earlier version of this test passed while the property was broken.
+    """
+    whole = _totals(library, (Course(3.0, 40),), CORRECTED)
+    for split in ((Course(3.0, 20), Course(3.0, 20)),
+                  tuple(Course(3.0, 10) for _ in range(4)),
+                  (Course(3.0, 5), Course(3.0, 15), Course(3.0, 20))):
+        assert _totals(library, split, CORRECTED) == pytest.approx(whole, rel=1e-12)
+
+    # Mixed fraction sizes, where the kick-off falls inside the second course.
+    mixed = _totals(library, (Course(2.0, 20), Course(3.0, 10)), CORRECTED)
+    assert _totals(library, (Course(2.0, 10), Course(2.0, 10), Course(3.0, 10)),
+                   CORRECTED) == pytest.approx(mixed, rel=1e-12)
+
+    # The legacy convention is what it is, and this pins the size of the gap.
+    legacy_whole = _totals(library, (Course(3.0, 40),), EXACT)
+    legacy_split = _totals(library, (Course(3.0, 20), Course(3.0, 20)), EXACT)
+    assert legacy_split[0] - legacy_whole[0] == pytest.approx(0.6, abs=1e-9)
+
+
+def test_corrected_calendar_halves_for_two_fractions_a_day(library):
+    """Both tissues must see the bifractionation, not just the repair term.
+
+    The 2014 tumour branch computes its overall time as (n + g) * 7/5 from the
+    fraction count, so forty fractions delivered twice a day span the same 56 days
+    as forty delivered once a day. Only the organ branch saw the compression.
+    """
+    organ, tumour = library.organ("Rectum"), library.tumour_site("Prostate")
+
+    def days(options, bifractionated):
+        plan = Prescription(courses=(Course(2.5, 40),), reference_dose=2.0,
+                            bifractionated=bifractionated)
+        course = compute(organ, tumour, plan, options, library).courses[0]
+        return course.overall_days_oar, course.overall_days_tumour
+
+    assert days(CORRECTED, False) == pytest.approx((56.0, 56.0))
+    assert days(CORRECTED, True) == pytest.approx((28.0, 28.0))
+    # Legacy leaves the tumour calendar at the full fraction count.
+    assert days(EXACT, True)[1] == pytest.approx(56.0)
+
+    # An odd count rounds the half day up: eleven fractions need six days.
+    plan = Prescription(courses=(Course(2.5, 11),), reference_dose=2.0,
+                        bifractionated=True)
+    course = compute(organ, tumour, plan, CORRECTED, library).courses[0]
+    assert course.overall_days_tumour == pytest.approx(6 * 7 / 5)
+
+
+def test_weekend_staircase_is_not_additive():
+    """Why the corrected convention cannot put the reference through Theta.
+
+    The staircase is an integer calendar. Applied per course it double-counts the
+    weekends at every boundary, and applied to a real-valued fraction count it
+    makes the equivalence non-invertible. Its long-run rate, 7 days per 5
+    sessions, is what the corrected convention uses on both sides instead.
+    """
+    assert overall_time(40, TimeModel.STAIRCASE) == 54
+    assert 2 * overall_time(20, TimeModel.STAIRCASE) == 52
+    for sessions in (10, 20, 40, 80):
+        rate = sessions * 7 / 5
+        assert abs(overall_time(sessions, TimeModel.STAIRCASE) - rate) <= 2.0
 
 
 def test_weekend_staircase_never_compresses_time():

@@ -58,6 +58,32 @@ class NotComputable(Exception):
     """Raised when the model does not apply to the requested schedule."""
 
 
+class Convention(Enum):
+    """Which set of equations to solve.
+
+    ``LEGACY`` reproduces the 2014 application, including three conventions that
+    its source imposes and that the published equations do not describe:
+
+    * the organ-at-risk proliferation loss is a flat ``n * 7/5 * dprol`` that
+      ignores the kick-off time ``Tk`` entirely;
+    * the reported organ equivalent dose is not ``n_r * d_r`` but
+      ``n_r * d_r - (T_course - T_reference) * dprol``, a second time correction
+      applied on top of a root that already carried one;
+    * the tumour calendar is a flat ``(n + g) * 7/5``, so it sees neither the
+      weekend staircase nor two fractions a day.
+
+    ``CORRECTED`` solves the equations as published: one absolute delivered
+    calendar shared by both tissues, a reference schedule advancing at the
+    continuous rate of 7 days per 5 fractions, proliferation applied through
+    ``(T - Tk)+`` on both sides of the equality, and ``EQD = n_r * d_r`` with
+    nothing added afterwards. It is additive across courses by construction and
+    is not expected to reproduce the 2014 numbers.
+    """
+
+    LEGACY = "legacy"
+    CORRECTED = "corrected"
+
+
 @dataclass(frozen=True)
 class Options:
     """Switches between 2014-compatible and corrected behaviour."""
@@ -69,6 +95,8 @@ class Options:
     time_model: TimeModel = TimeModel.LEGACY
     #: Sigmoid used for the tumour control probability, which is new in 3.0.
     tcp_model: TCPModel = None  # type: ignore[assignment]
+    #: Which equations to solve. See :class:`Convention`.
+    convention: Convention = Convention.LEGACY
 
     def __post_init__(self) -> None:
         if self.tcp_model is None:
@@ -489,6 +517,9 @@ def compute(
     oar = organ if isinstance(organ, Tissue) else library.organ(organ)
     tum = tumour if isinstance(tumour, Tissue) else library.tumour_site(tumour)
 
+    if options.convention is Convention.CORRECTED:
+        return _compute_corrected(oar, tum, prescription, options, library, gamma)
+
     oar_bounds = _OAR_BOUNDS if options.legacy_quantisation else _EXACT_OAR_BOUNDS
     tumour_bounds = (_TUMOUR_BOUNDS if options.legacy_quantisation
                      else _EXACT_TUMOUR_BOUNDS)
@@ -588,9 +619,122 @@ def compute(
     )
 
 
+def _sessions(course: Course, bifractionated: bool) -> float:
+    """Treatment days a course occupies, gap included, before weekends.
+
+    Two fractions a day occupy half as many days, rounded up: eleven fractions
+    delivered twice a day need six days, not five and a half.
+    """
+    if not bifractionated:
+        delivered = course.n_fractions
+    else:
+        delivered = math.ceil(course.n_fractions / 2.0)
+    return delivered + course.gap_days
+
+
+def _compute_corrected(
+    oar: Tissue, tum: Tissue, prescription: Prescription, options: Options,
+    library: Library, gamma: float,
+) -> Result:
+    """Solve the published equations rather than reproduce the 2014 source.
+
+    Three things differ from :data:`Convention.LEGACY`, and each of them is a
+    place where the 2014 code and the equations it was published with disagree.
+
+    Delivered and reference schedules run on one absolute calendar, at the
+    continuous rate of 7 days per 5 treatment sessions. Both have to use the same
+    rate, or the two proliferation losses fail to cancel when the evaluated
+    schedule *is* the reference schedule and 39 fractions of 2 Gy stop returning
+    78 Gy. The integer weekend staircase cannot serve here: the equivalent
+    fraction count is a real number solved from an equality, and a staircase
+    makes that equality neither invertible nor additive. 7/5 is its exact
+    long-run rate, and it is what the 2014 tumour path already used. The
+    staircase remains available through :func:`~lqlequiv.schedule.overall_time`
+    as the nominal calendar a department would read off a wall.
+
+    Sessions accumulate across courses rather than restarting, so forty fractions
+    in one course and twenty plus twenty span the same time. Both tissues use the
+    same proliferation term, switched on at their own kick-off time, and the
+    equivalent dose is the fraction count times the reference dose, with nothing
+    added afterwards.
+    """
+    repair_oar = _incomplete_repair(oar) if prescription.bifractionated else 0.0
+    repair_tum = _incomplete_repair(tum) if prescription.bifractionated else 0.0
+    dprol = {"oar": oar.dprol, "tum": _tumour_dprol(tum)}
+    reference = prescription.reference_dose
+    bounds = _EXACT_TUMOUR_BOUNDS
+    exact = Options(legacy_quantisation=False, time_model=options.time_model,
+                    tcp_model=options.tcp_model, convention=Convention.CORRECTED)
+
+    results: list[CourseResult] = []
+    totals = {"oar": 0.0, "tum": 0.0}
+    reference_days = {"oar": 0.0, "tum": 0.0}
+    sessions_before = 0.0
+    delivered_before = 0.0
+
+    for course in prescription.courses:
+        empty = course.is_empty or reference == 0.0
+        sessions_after = sessions_before + _sessions(course, prescription.bifractionated)
+        delivered_after = sessions_after * 7.0 / 5.0
+        days_of_course = delivered_after - delivered_before
+
+        per_course: dict[str, tuple[float, float]] = {}
+        for key, tissue, repair in (("oar", oar, repair_oar), ("tum", tum, repair_tum)):
+            bed = _tumour_course_bed(
+                course, delivered_before, days_of_course, tissue, gamma, repair,
+                dprol[key],
+            )
+            if empty:
+                fractions = 0.0
+            else:
+                fractions = _tumour_equivalent_fractions(
+                    bed, reference, reference_days[key], tissue, gamma,
+                    dprol[key], exact,
+                )
+            eqd = fractions * reference
+            if eqd + totals[key] < 0.0:
+                eqd = -totals[key]
+            totals[key] += eqd
+            reference_days[key] += max(fractions, 0.0) * 7.0 / 5.0
+            per_course[key] = (bed, fractions)
+
+        sessions_before = sessions_after
+        delivered_before = delivered_after
+        results.append(
+            CourseResult(
+                bed_oar=per_course["oar"][0], eqd_oar=per_course["oar"][1] * reference,
+                bed_tumour=per_course["tum"][0],
+                eqd_tumour=per_course["tum"][1] * reference,
+                overall_days_oar=days_of_course, overall_days_tumour=days_of_course,
+                equivalent_fractions_oar=per_course["oar"][1],
+                equivalent_fractions_tumour=per_course["tum"][1],
+                oar_saturated=not empty and _at_bound(per_course["oar"][1], bounds),
+                tumour_saturated=not empty and _at_bound(per_course["tum"][1], bounds),
+            )
+        )
+
+    valid = {
+        key: not (prescription.bifractionated
+                  and any(c.dose_per_fraction > tissue.dt for c in prescription.courses))
+        for key, tissue in (("oar", oar), ("tum", tum))
+    }
+    return Result(
+        courses=tuple(results),
+        eqd_oar_total=totals["oar"],
+        eqd_tumour_total=totals["tum"],
+        ntcp_percent=normal_tissue_complication_probability(totals["oar"], oar),
+        tcp_percent=tumour_control_probability(totals["tum"], tum, options.tcp_model),
+        cancer_risk=radiation_induced_cancer_risk(totals["oar"], oar),
+        oar_total_valid=valid["oar"],
+        tumour_total_valid=valid["tum"],
+        endpoint=oar.endpoint,
+        options=options,
+    )
+
+
 __all__ = [
-    "Course", "CourseResult", "NotComputable", "Options", "Prescription",
-    "Result", "TCPModel", "TimeModel", "compute",
+    "Convention", "Course", "CourseResult", "NotComputable", "Options",
+    "Prescription", "Result", "TCPModel", "TimeModel", "compute",
     "normal_tissue_complication_probability", "radiation_induced_cancer_risk",
     "tumour_control_probability",
 ]

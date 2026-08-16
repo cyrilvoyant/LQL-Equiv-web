@@ -154,6 +154,33 @@ Five tissues carry no Lyman parameters. The 2014 code divides by zero and
 displays 100 %, indistinguishable from a genuine certainty of complication.
 Version 3.0 reports the quantity as unavailable.
 
+### 5. Three time conventions the published equations do not describe
+
+Found in August 2026, after an independent review read the source against the
+manuscript. These are not rounding differences: they change the answer.
+
+| | 2014 source, reproduced by `Convention.LEGACY` | Published equations, solved by `Convention.CORRECTED` |
+|---|---|---|
+| Organ proliferation | flat `n * 7/5 * dprol`, `Tk` never read | `dprol * (T - Tk)+`, as for the tumour |
+| Reported organ dose | `n_r * d_r - (T - T_r) * dprol` | `n_r * d_r` |
+| Tumour calendar | flat `(n + g) * 7/5`, blind to the weekend staircase and to two fractions a day | one absolute calendar at 7 days per 5 sessions, shared by both tissues |
+
+The second is the largest. For a rectum receiving 20 × 3 Gy, `n_r * d_r` is
+75.03 Gy while 82.69 Gy is reported: a second time correction is applied on top
+of a root that already carried one. Two consequences follow. Splitting a
+40-fraction course into two courses of 20 adds 0.6 Gy from nowhere, because the
+weekend staircase restarts and `Θ(40) = 54` against `2 Θ(20) = 52`. And an organ
+whose proliferation begins on day 100 is charged as though it began on day one.
+
+`LEGACY` remains the library default, so results published before 2026 stay
+reproducible, and it is what the 4438-schedule golden suite measures. `CORRECTED`
+is what the browser application runs. Four tests in `tests/test_analytic.py`
+separate them, each failing under `LEGACY` by construction. The corrected
+convention uses the continuous rate 7/5 rather than the integer staircase on both
+sides of the equality, because a staircase is not additive and cannot be inverted
+on the real-valued fraction count; the staircase is still reported as the nominal
+calendar.
+
 ## Improvement axes
 
 **Delivered in 3.0**
