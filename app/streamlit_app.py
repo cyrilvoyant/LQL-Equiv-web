@@ -27,7 +27,6 @@ from lqlequiv.model import (  # noqa: E402
     Options,
     Prescription,
     TCPModel,
-    TimeModel,
     compute,
 )
 from lqlequiv.tissues import load_library  # noqa: E402
