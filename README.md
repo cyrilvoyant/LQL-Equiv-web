@@ -16,10 +16,9 @@ repair, accelerated proliferation and treatment protraction.
 
 This is version 3.0, a complete reimplementation of the 2014 MATLAB application
 [`cyrilvoyant/LQ-Equiv`](https://github.com/cyrilvoyant/LQ-Equiv), compared
-case by case against it over 4438 treatment schedules. It solves the equations
-that release was published with, which for the organ at risk is not what its
-source computed — see
-[`docs/COMPARISON-2014.md`](docs/COMPARISON-2014.md).
+case by case against it over 4438 treatment schedules. Overall time is handled
+differently, which is the one change that moves a number — see
+[what changed since 2014](#what-changed-since-2014).
 
 > [!WARNING]
 > **For research and education only. Not intended for clinical use.**
@@ -110,19 +109,21 @@ halfway between two points of the 2014 search grid and the original result is
 settled by floating-point noise at the fifteenth decimal. The full analysis is
 in [`docs/COMPARISON-2014.md`](docs/COMPARISON-2014.md).
 
-**What this validates, and what it does not.** Agreeing with the 2014 application
-shows that the port is faithful; it cannot show that either is right. The
-software therefore also asserts properties of the equations themselves, with no
-reference implementation in the loop: continuity at the transition dose, the
-identity `EQD = n·d` at the reference fraction size, additivity across split
-courses, and the round trip — delivering the reported dose at the reference
-fraction size must reproduce the BED it replaced. That last one is what
-identified the organ-at-risk difference below.
+**Two questions, checked apart.** Whether the calculation was transcribed
+correctly, and whether the transcribed calculation is right. The table above
+answers the first: over the values the 2014 search resolved rather than
+truncating at its bound, the organ doses agree exactly and four target doses
+differ by 0.02 Gy. The port introduced nothing.
 
-`Options.legacy_2014()` reproduces the 2014 behaviour, including its search grid
-of hundredths of a fraction stopping at 100 and its calendar contradiction past
-86 fractions. It exists for recomputing a result published before 2026 and for
-the non-regression suite; nothing else uses it.
+The second question needs checks that do not involve the 2014 code at all:
+continuity at the transition dose, `EQD = n·d` at the reference fraction size,
+additivity across split courses, and the round trip — delivering the reported
+dose at the reference fraction size must reproduce the BED it replaced. Sixteen
+such checks are in `tests/test_analytic.py`. The round trip is what found the
+time-handling difference below.
+
+`Options.legacy_2014()` returns the 2014 answer, for recomputing a result
+published before 2026 and for the non-regression suite. Nothing else uses it.
 
 Separately, the closed-form search that replaces the original exhaustive scan is
 proved equivalent to it: [`tools/verify_grid_equivalence.py`](tools/verify_grid_equivalence.py)
@@ -136,18 +137,19 @@ pytest -m slow         # the grid-equivalence replay alone (needs numpy)
 
 ## What changed since 2014
 
-Beyond the port itself, the reimplementation surfaced several defects in the
-original release. All are documented, and all remain reachable through
-`Options.legacy_2014()` rather than being silently corrected:
+Software improves between releases, and the changes should be traced rather than
+assumed. All of the following are documented, and the previous behaviour stays
+reachable through `Options.legacy_2014()`:
 
-- **The organ-at-risk equivalent dose did not satisfy its own definition.** The
-  source reported `n_r · d_r − (T − T_r) · dprol`, where the 2014 paper's
-  equation (12) defines it as `n_r · d_r`. The subtracted term charges a second
-  time a span the solved `n_r` had already balanced: for a rectum receiving
-  20 × 3 Gy, the reported 82.69 Gy delivered at 2 Gy per fraction carries a BED
-  of 107.74 Gy against the schedule's own 97.75 Gy. Version 3.0 reports 75.25 Gy
-  and the round trip closes. **This is the only one that changes an answer a
-  department would read.**
+- **Overall time is now charged once instead of twice.** The 2014 code solved the
+  equivalence with time already accounted on both sides, then subtracted the
+  difference in span a second time. Handling time is not obvious and its
+  treatment was not wrong in direction, only about twice too large: for a rectum
+  receiving 20 × 3 Gy it reported 82.69 Gy where the schedule carries 75.25 Gy.
+  The effect is nil at 2 Gy per fraction, grows with the departure from it, and
+  is nil for the eight organs whose recovered dose is zero — the spinal cord
+  returns the same value in both versions at every fraction size.
+  **This is the only change that moves a number a department would read.**
 - **Tumour control probability was never computed.** The library held dose-response
   parameters for eleven tumour sites that no code path used. They are γ50 and
   TCD50 values, not Lyman parameters — which is probably why they went unused.

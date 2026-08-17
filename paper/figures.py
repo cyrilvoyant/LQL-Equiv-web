@@ -1,4 +1,4 @@
-"""Figures and statistics for the SoftwareX manuscript.
+﻿"""Figures and statistics for the SoftwareX manuscript.
 
 Produces three vector figures and prints every number quoted in the text, so
 that the manuscript can be regenerated from the code rather than transcribed.
@@ -28,7 +28,6 @@ from pathlib import Path
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy import stats
 from scipy.optimize import brentq
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -314,7 +313,7 @@ def figure_fractionation():
     # actually delivered in a randomised trial rather than at an axis endpoint.
     lq_label, lql_label = scenarios[0][0], scenarios[1][0]
     i = int(np.argmin(np.abs(counts - 5)))
-    print(f"  at 5 fractions, same target effect and same target alpha/beta:")
+    print("  at 5 fractions, same target effect and same target alpha/beta:")
     print(f"    without the linear tail   {summary[lq_label][0][i]:5.2f} Gy per "
           f"fraction, organ EQD2 {summary[lq_label][1][i]:6.2f} Gy, NTCP "
           f"{summary[lq_label][2][i]:5.1f} %")
@@ -457,162 +456,93 @@ def figure_lql():
 
 
 # ---------------------------------------------------------------------------
-# Figure 5 -- what the 2014 organ-at-risk convention changed, and where
+# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Figure 5 -- how the time term was counted, and what it scales with
 # ---------------------------------------------------------------------------
 
 def figure_2014_difference():
-    """Version 3.0 against the 2014 application, over deliverable schedules.
+    """The 2014 release and version 3.0, on four tissues chosen to show why.
 
-    One, two and three successive courses, 1 to 12 Gy per fraction, once and
-    twice a day, with and without interruptions capped at fourteen missed
-    sessions. Schedules leaving the organ above 100 Gy EQD2 are dropped, being
-    arithmetically valid and clinically meaningless, as are those the model
-    declares inapplicable.
+    The spinal cord carries no recovered dose, dprol = 0, so the time term is
+    identically zero for it and the two versions cannot differ. It is the
+    control: any difference seen on the other three is the time term and nothing
+    else. Rectum and heart share dprol = 0.3 and differ in alpha/beta; the lung
+    at 0.54 is the most proliferative organ of the library after the mucosae.
+
+    Total physical dose is held at 60 Gy in every schedule, so only fractionation
+    changes. A third curve gives the same calculation with the recovered dose set
+    to zero, which is what the time term is measured against.
     """
     library = load_library()
     legacy = Options.legacy_2014()
-    #: An equivalent dose below 2 Gy is not a treatment and one above 100 Gy is
-    #: not an organ constraint; both ends are arithmetic rather than clinic.
-    floor, ceiling = 2.0, 100.0
-    #: Interruptions in missed sessions. Fourteen is about twenty calendar days
-    #: once the weekends inside them are supplied by the staircase.
-    max_gap = 14
-    doses = np.arange(1.0, 12.01, 0.5)
-    counts = np.array([1, 2, 3, 5, 8, 10, 12, 15, 20, 25, 30, 35, 40])
-    gap_choices = np.array([0, 0, 0, 3, 5, 7, 10, 14])
-    rng = np.random.default_rng(20260816)
+    target = library.tumour_site("Prostate")
+    total = 60.0
+    tissues = (("Spinal cord", GREY), ("Rectum", BLUE),
+               ("Heart", TEAL), ("Lung", SAND))
+    doses = np.arange(1.0, 12.01, 0.25)
 
-    rows, seen = [], set()
-    for _ in range(80_000):
-        n_courses = int(rng.integers(1, 4))
-        budget, courses = max_gap, []
-        for index in range(n_courses):
-            gap = 0 if index == 0 else int(min(rng.choice(gap_choices), budget))
-            budget -= gap
-            courses.append(Course(float(rng.choice(doses)),
-                                  float(rng.choice(counts)), float(gap)))
-        courses = tuple(courses)
-        bifractionated = bool(rng.integers(0, 2))
-        organ = library.organ(str(rng.choice(library.organ_names)))
-        target = library.tumour_site(str(rng.choice(library.tumour_names)))
-        key = (courses, bifractionated, organ.name, target.name)
-        if key in seen:
-            continue
-        seen.add(key)
-        if bifractionated and any(
-            c.dose_per_fraction > min(organ.dt, target.dt) for c in courses
-        ):
-            continue
-        plan = Prescription(courses=courses, reference_dose=2.0,
-                            bifractionated=bifractionated)
-        old = compute(organ, target, plan, legacy, library)
-        new = compute(organ, target, plan, EXACT, library)
-        if not (old.oar_total_valid and old.tumour_total_valid):
-            continue
-        pair = []
-        for a, b in ((old.eqd_oar_total, new.eqd_oar_total),
-                     (old.eqd_tumour_total, new.eqd_tumour_total)):
-            pair.append((a, b) if floor <= min(a, b) and max(a, b) <= ceiling
-                        else None)
-        if pair[0] is None and pair[1] is None:
-            continue
-        rows.append((len(courses), any(c.gap_days > 0 for c in courses),
-                     bifractionated, pair[0], pair[1]))
-
-    n_courses = np.array([r[0] for r in rows])
-    has_gap = np.array([r[1] for r in rows])
-    bids = np.array([r[2] for r in rows])
-    kept = {}
-    for index, label in ((3, "organ at risk"), (4, "target")):
-        mask = np.array([r[index] is not None for r in rows])
-        kept[label] = (mask, np.array([r[index][1] - r[index][0]
-                                       for r in rows if r[index] is not None]))
+    curves = {}
+    for name, _ in tissues:
+        organ = library.organ(name)
+        without, old, new = [], [], []
+        for dose in doses:
+            plan = Prescription(courses=(Course(float(dose), total / dose),),
+                                reference_dose=2.0)
+            without.append(compute(replace(organ, dprol=0.0), target, plan,
+                                   EXACT, library).eqd_oar_total)
+            old.append(compute(organ, target, plan, legacy, library).eqd_oar_total)
+            new.append(compute(organ, target, plan, EXACT, library).eqd_oar_total)
+        curves[name] = tuple(np.array(v) for v in (without, old, new))
 
     print("=" * 74)
-    print("FIGURE 5  version 3.0 against the 2014 application")
-    print(f"  {len(rows)} deliverable plans, 1 to 3 courses, 1 to 12 Gy per")
-    print(f"  fraction, once and twice a day, interruptions to {max_gap} missed")
-    print(f"  sessions, all {len(library.organ_names)} organs and "
-          f"{len(library.tumour_names)} target sites,")
-    print(f"  equivalent dose kept between {floor:g} and {ceiling:g} Gy EQD2")
-    for label, (mask, deltas) in kept.items():
-        print(f"  {label}, n = {deltas.size}")
-        print(f"    unchanged (|d| < 0.01 Gy)  {int((abs(deltas) < 0.01).sum())} "
-              f"({100 * (abs(deltas) < 0.01).mean():.1f} %)")
-        print(f"    median                     {np.median(deltas):+.2f} Gy")
-        print(f"    5th, 95th percentile       {np.percentile(deltas, 5):+.2f}, "
-              f"{np.percentile(deltas, 95):+.2f} Gy")
-        print(f"    range                      {deltas.min():+.2f} to "
-              f"{deltas.max():+.2f} Gy")
-        for sub, name in ((n_courses[mask] == 1, "one course       "),
-                          (n_courses[mask] == 2, "two courses      "),
-                          (n_courses[mask] == 3, "three courses    "),
-                          (~has_gap[mask], "no interruption  "),
-                          (has_gap[mask], "with interruption"),
-                          (~bids[mask], "once a day       "),
-                          (bids[mask], "twice a day      ")):
-            if sub.sum():
-                print(f"      {name} n = {int(sub.sum()):5d}  median "
-                      f"{np.median(deltas[sub]):+6.2f}  5th "
-                      f"{np.percentile(deltas[sub], 5):+7.2f} Gy")
+    print("FIGURE 5  the time term, 2014 and version 3.0")
+    print(f"  {total:g} Gy physical in every schedule, target "
+          f"{target.name.lower()}")
+    print(f"  {'tissue':13s} {'dprol':>6s} {'alpha/beta':>11s}"
+          f"   share the time term adds at 3, 6 and 12 Gy per fraction")
+    for name, _ in tissues:
+        organ = library.organ(name)
+        line = f"  {name:13s} {organ.dprol:6.2f} {organ.alpha_beta:11.1f}   "
+        for want in (3.0, 6.0, 12.0):
+            i = int(np.argmin(np.abs(doses - want)))
+            without, old, new = curves[name]
+            if without[i]:
+                line += (f" {100*(old[i]-without[i])/without[i]:+6.1f} /"
+                         f"{100*(new[i]-without[i])/without[i]:+6.1f} %")
+        print(line)
+    print("     (2014 / version 3.0; the cord cannot move, dprol being zero)")
 
     fig, (left, right) = plt.subplots(1, 2, figsize=(7.1, 2.9))
-    oar_mask, oar = kept["organ at risk"]
-    left.hist([oar[n_courses[oar_mask] == k] for k in (1, 2, 3)], bins=55,
-              stacked=True, color=[BLUE, TEAL, SAND], edgecolor="none",
-              label=["one course", "two courses", "three courses"])
-    left.axvline(0, color=RED, lw=1.2)
-    left.set_yscale("log")
-    left.set_ylim(0.7, 10 ** (np.log10(max(1.0, left.get_ylim()[1])) + 1.6))
-    left.set_xlabel("version 3.0 minus 2014 (Gy)")
-    left.set_ylabel("plans")
-    left.legend(loc="upper left")
-    # The sampling envelope, written on the figure rather than left to the
-    # caption: a reader should be able to see what was and was not drawn.
-    left.text(0.985, 0.97,
-              "drawn at random, seed 20260816\n"
-              f"1 to 3 successive courses\n"
-              f"{doses[0]:.0f} to {doses[-1]:.0f} Gy per fraction, "
-              f"{counts.min()} to {counts.max()} fractions\n"
-              "once and twice a day\n"
-              f"interruptions 0 to {max_gap} missed sessions\n"
-              f"{len(library.organ_names)} organs, "
-              f"{len(library.tumour_names)} target sites\n"
-              f"kept if {floor:g} $\\leq$ EQD2 $\\leq$ {ceiling:g} Gy",
-              transform=left.transAxes, fontsize=6, color="#4a4a4a",
-              ha="right", va="top", linespacing=1.45)
-    panel_tag(left, f"(a)  organ at risk, {oar.size} plans")
 
-    groups, ticks, colours = [], [], []
-    for label, colour in (("organ at risk", BLUE), ("target", TEAL)):
-        mask, deltas = kept[label]
-        for sub, tick in ((~has_gap[mask] & ~bids[mask], "plain"),
-                          (has_gap[mask], "gap"),
-                          (bids[mask], "twice a day")):
-            if sub.sum():
-                groups.append(deltas[sub])
-                ticks.append(tick)
-                colours.append(colour)
-    box = right.boxplot(groups, tick_labels=ticks, widths=0.6, patch_artist=True,
-                        flierprops=dict(markersize=1.2))
-    for patch, colour in zip(box["boxes"], colours):
-        patch.set_facecolor(colour)
-        patch.set_alpha(0.55)
-        patch.set_edgecolor(colour)
-    for median in box["medians"]:
-        median.set_color("#1a1a1a")
-        median.set_linewidth(1.4)
-    right.axhline(0, color=RED, lw=1.2)
+    without, old, new = curves["Rectum"]
+    left.plot(doses, without, color=GREY, ls=":", lw=1.4,
+              label="no time correction")
+    left.plot(doses, old, color=RED, ls="--", lw=1.5, label="2014")
+    left.plot(doses, new, color=BLUE, lw=1.6, label="version 3.0")
+    left.fill_between(doses, without, new, color=BLUE, alpha=0.13, lw=0)
+    left.fill_between(doses, new, old, color=RED, alpha=0.13, lw=0)
+    left.axvline(2.0, color=GREY, lw=0.7, ls=":")
+    left.set_xlabel("dose per fraction (Gy)")
+    left.set_ylabel("rectum EQD2 (Gy)")
+    left.set_xlim(1, 12)
+    left.legend(loc="upper left")
+    left.text(0.97, 0.30, "blue: time charged once\nred: charged a second time",
+              transform=left.transAxes, fontsize=7, color="#3a3a3a", ha="right")
+    panel_tag(left, "(a)  the rectum, and where the difference comes from")
+
+    for name, colour in tissues:
+        organ = library.organ(name)
+        _, old, new = curves[name]
+        right.plot(doses, new - old, color=colour, lw=1.6,
+                   label=f"{name.lower()}, $D_\\mathrm{{prol}}$ = {organ.dprol:g}")
+    right.axhline(0, color=RED, lw=1.0, ls="--")
+    right.axvline(2.0, color=GREY, lw=0.7, ls=":")
+    right.set_xlabel("dose per fraction (Gy)")
     right.set_ylabel("version 3.0 minus 2014 (Gy)")
-    right.tick_params(axis="x", labelsize=7)
-    right.axvline(3.5, color=GREY, lw=0.7, ls=":")
-    top = right.get_ylim()[1]
-    right.set_ylim(top=top * 1.22)
-    right.text(2.0, top * 1.10, "organ at risk", fontsize=7.5, color=BLUE,
-               ha="center", va="center")
-    right.text(5.0, top * 1.10, "target", fontsize=7.5, color=TEAL,
-               ha="center", va="center")
-    panel_tag(right, "(b)  both tissues, by interruption and regime")
+    right.set_xlim(1, 12)
+    right.legend(loc="lower left")
+    panel_tag(right, "(b)  and what it scales with")
 
     fig.tight_layout()
     fig.savefig(OUT / "fig5_difference2014.pdf")

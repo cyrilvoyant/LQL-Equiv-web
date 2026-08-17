@@ -692,7 +692,11 @@ def _reference_fractions(
                if kick_off else 0.0)
     tail_slope = per_fraction - dprol
 
-    for low, high, offset in staircase_segments(sessions_before + 400.0):
+    # The scan must reach the search bound, not some closer round number. An
+    # earlier version stopped 400 sessions ahead, which silently clamped the
+    # answer at 401 reference fractions and reported it as a solution -- the same
+    # failure the 2014 bound of 100 produced, and no more acceptable here.
+    for low, high, offset in staircase_segments(sessions_before + high_bound):
         # The segments are cut on the staircase argument, which is the running
         # session count, so the interval on n is shifted by what came before.
         low_n = max(low - sessions_before, low_bound)

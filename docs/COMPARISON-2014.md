@@ -154,28 +154,32 @@ Five tissues carry no Lyman parameters. The 2014 code divides by zero and
 displays 100 %, indistinguishable from a genuine certainty of complication.
 Version 3.0 reports the quantity as unavailable.
 
-### 5. The organ equivalent dose does not satisfy the equality it comes from
+### 5. Overall time is now charged once instead of twice
 
-Found in August 2026, when an independent review read the source against the
-paper it was published with. This is not a rounding difference.
+This is the one change that moves a number a department would read. Handling
+overall time is not obvious, and the 2014 treatment was not wrong in direction —
+it pointed the same way as the current one and simply went about twice as far.
 
-The paper defines the equivalent dose in its equation (12) as `EQD2 = 2 n0`,
-where `n0` minimises the cost function of equation (11). The source solves for
-`n0` — with proliferation charged on both sides, at the rate `7/5` — and then
-reports something else:
+**What the 2014 source did.** It handled overall time in two steps. First it
+solved the equivalence with time charged at a flat rate of 7/5 days per fraction,
+on both sides. Then it subtracted the difference in span a second time, using the
+weekend calendar:
 
 ```matlab
 EQDs2 = I2*0.01*dose1 - (eta2-eta1)*dprol;   % organ,  eqd_matlb.m line 3245
 EQDt2 = It2*0.01*dose1;                       % target, line 3276
 ```
 
-`eta2` is the overall time of the schedule and `eta1` that of its equivalent,
-both from the weekend staircase. The subtraction charges the difference in span a
-second time, the root having already balanced it.
+`eta2` is the overall time of the schedule, `eta1` that of its equivalent. The
+root `I2` had already balanced that span, so the subtraction charges it again.
+The paper published with that release states the equivalent dose as `EQD2 = 2 n0`
+in its equation (12), with nothing after it, and the target line above follows
+that. Only the organ line carries the extra term.
 
-**The test.** An equivalent dose has one defining property: delivered at the
-reference fraction size, it must reproduce the biologically effective dose it
-replaced. For a rectum (α/β = 3.9 Gy, `dprol` = 0.3 Gy/day) receiving 20 × 3 Gy:
+**How the two are told apart.** An equivalent dose has one defining property:
+delivered at the reference fraction size, it must reproduce the biologically
+effective dose it replaced. For a rectum (α/β = 3.9 Gy, `dprol` = 0.3 Gy/day)
+receiving 20 × 3 Gy:
 
 | | 2014 | version 3.0 |
 |---|---|---|
@@ -185,16 +189,53 @@ replaced. For a rectum (α/β = 3.9 Gy, `dprol` = 0.3 Gy/day) receiving 20 × 3 
 | BED of *that* schedule | **107.74 Gy** | **97.75 Gy** |
 | round trip closes | no, +9.97 Gy | yes, 0.00 Gy |
 
-Over 7850 deliverable schedules the round trip closes for 28.6 % of the 2014
-values and for all of version 3.0's. Splitting a 40-fraction course into two
-courses of 20 also moved the 2014 total by 0.6 Gy, the staircase restarting at
-each course with `Θ(40) = 54` against `2 Θ(20) = 52`; version 3.0 is additive.
+Version 3.0 charges the time once, on the weekend calendar throughout, and
+reports `n_r · d_r`. Of the 7.65 Gy the second term added here, 7.36 Gy is span
+already priced into the root and 0.30 Gy is a genuine refinement, from using the
+real calendar rather than the 7/5 rate. The refinement is kept and the duplicate
+dropped. Splitting a 40-fraction course into two courses of 20 also moved the
+2014 total by 0.6 Gy, the calendar restarting at each course with `Θ(40) = 54`
+against `2 Θ(20) = 52`; version 3.0 is additive.
 
-Of the 7.65 Gy the second term adds for this case, 7.36 Gy is the span already
-priced into `n0` and 0.30 Gy is a genuine refinement, from replacing the rate
-`7/5` by the real calendar. Version 3.0 keeps the refinement and drops the
-duplicate: both sides of the equality now run on the staircase, since
-proliferation is charged per elapsed day and weekends are elapsed days.
+**How much it matters, and on what it depends.** On one parameter, `dprol`. The
+spinal cord has none, so the time term is identically zero and the two versions
+cannot differ — and they do not, at any fraction size. Everything below is the
+time term alone, and it scales with `dprol`.
+
+Percentage that overall time adds to the organ equivalent dose, against the same
+calculation with `dprol` set to zero. 60 Gy physical in every entry.
+
+| | Spinal cord | | Rectum | | Heart | | Lung | |
+|---|---|---|---|---|---|---|---|---|
+| `dprol` (Gy/d) | 0.00 | | 0.30 | | 0.30 | | 0.54 | |
+| **d per fraction** | 2014 | 2026 | 2014 | 2026 | 2014 | 2026 | 2014 | 2026 |
+| 1.8 Gy | 0.0 | 0.0 | −6.1 | −2.4 | −5.9 | −1.9 | −12.0 | −4.4 |
+| 2.0 Gy | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
+| 3.0 Gy | 0.0 | 0.0 | +17.9 | +7.2 | +16.5 | +5.5 | +34.7 | +13.1 |
+| 6.0 Gy | 0.0 | 0.0 | +32.8 | +13.2 | +28.8 | +9.6 | +64.9 | +24.8 |
+| 12.0 Gy | 0.0 | 0.0 | +37.8 | +15.1 | +32.8 | +11.0 | +74.2 | +28.0 |
+
+Nil at the reference fraction size, growing with the departure from it, and
+changing sign below 2 Gy where a protracted schedule loses dose rather than
+gaining it. In every case the 2014 treatment overshot, which made it report more
+dose to an organ than the schedule carries — the more conservative of the two.
+
+**Two steps, measured separately.** The port and the calculation are different
+questions and are checked apart. Over the 4438 schedules of the golden corpus,
+restricted to the values the 2014 search resolved rather than truncating at its
+bound of 100 reference fractions:
+
+| | organ | target |
+|---|---|---|
+| values compared | 11 505 | 11 667 |
+| the port: Python legacy mode against MATLAB, identical | **11 505 (100 %)** | 11 663 (100 %) |
+| worst | **0.000 Gy** | 0.020 Gy |
+| the calculation: version 3.0 against legacy, unchanged | 8925 (77.6 %) | 9016 (77.3 %) |
+| 95th percentile | 14.3 Gy | 1.4 Gy |
+
+The transcription introduced nothing. Three quarters of values are unchanged by
+the calculation, the target barely moves, and what moves is the organ under
+hypofractionation.
 
 **What is not changed.** The two tissues keep the two proliferation models the
 paper gives them. Equations (3) and (4) apply Dale to the target, with the
