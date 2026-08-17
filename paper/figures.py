@@ -386,7 +386,8 @@ def figure_lql():
               f"LQ {lq[i]:7.2f} [{lq_low[i]:6.2f}, {lq_high[i]:6.2f}]  "
               f"{100 * (lq[i] - lql[i]) / lql[i]:+6.1f} %")
 
-    fig, (left, right) = plt.subplots(1, 2, figsize=(7.1, 2.9), sharex=True)
+    fig, (left, right) = plt.subplots(
+        1, 2, figsize=(7.4, 2.9), gridspec_kw={"width_ratios": [1.0, 1.45]})
 
     left.fill_between(doses, lql, lq, color=GREY, alpha=0.10, lw=0,
                       label="excess attributed by LQ")
@@ -418,10 +419,8 @@ def figure_lql():
 
     for values in population:
         right.plot(doses, values, color=GREY, lw=0.5, alpha=0.35, zorder=1)
-    right.fill_between(doses, q1, q3, color=BLUE, alpha=0.18, lw=0, zorder=2,
-                       label="interquartile range")
-    right.plot(doses, median, color=BLUE, lw=1.8, zorder=4,
-               label=f"median of {len(library.organ_names)} tissues")
+    right.fill_between(doses, q1, q3, color=BLUE, alpha=0.18, lw=0, zorder=2)
+    right.plot(doses, median, color=BLUE, lw=1.8, zorder=4)
 
     print(f"  excess by tissue, {len(library.organ_names)} tissues in the library:")
     for want in (6.0, 10.0, 12.0, 15.0):
@@ -430,24 +429,39 @@ def figure_lql():
               f"IQR [{q1[i]:+6.1f}, {q3[i]:+6.1f}]   "
               f"range [{population[:, i].min():+6.1f}, "
               f"{population[:, i].max():+6.1f}]")
-    for name, colour in (("Spinal cord", RED), ("Stomach", PURPLE)):
+    # Four tissues are named, one per group sharing the same transition dose,
+    # and each is written at the end of its own curve. The label carries the
+    # transition dose, which is what orders the curves: nothing moves below it.
+    ceiling = 120.0
+    named = (("Femoral head", PURPLE, "femoral head, oropharynx"),
+             ("Spinal cord", TEAL, "spinal cord, heart, eye"),
+             ("Rectum", SAND, "rectum"),
+             ("Stomach", "#2f3640", "stomach, oral mucosa"))
+    for name, colour, label in named:
         organ = library.organ(name)
-        right.plot(doses, excesses[name], color=colour, lw=1.4, zorder=5,
-                   label=f"{name.lower()}, $d_t$ = {organ.dt:.1f} Gy")
+        values = excesses[name]
+        right.plot(doses, values, color=colour, lw=1.5, zorder=5)
+        text = f"{label}, $d_t$ = {organ.dt:g} Gy"
+        if values[-1] <= ceiling:
+            right.text(doses[-1] + 0.25, values[-1], text, fontsize=7,
+                       color=colour, ha="left", va="center")
+        else:
+            right.text(0.99, 0.99, f"{text},\nleaving the axis and reaching "
+                       f"{values[-1]:.0f} % at {doses[-1]:g} Gy",
+                       transform=right.transAxes, fontsize=7, color=colour,
+                       ha="right", va="top", linespacing=1.5)
         i = int(np.argmin(np.abs(doses - 12.0)))
         print(f"    {name:14s} dt {organ.dt:5.1f} Gy   "
-              f"{excesses[name][i]:+6.1f} % at 12 Gy per fraction")
+              f"{values[i]:+6.1f} % at 12 Gy per fraction")
+    right.text(doses[-1] + 0.25, median[-1], "median of the 34 tissues",
+               fontsize=7, color=BLUE, ha="left", va="center")
+    right.text(doses[-1] + 0.25, q3[-1] + 3, "interquartile range",
+               fontsize=7, color=BLUE, alpha=0.75, ha="left", va="bottom")
     right.set_xlabel("dose per fraction (Gy)")
     right.set_ylabel("dose attributed in excess by LQ (%)")
-    right.set_xlim(1, 15)
-    right.set_ylim(-3, 120)
-    above = int((population[:, -1] > 120).sum())
-    right.text(0.99, 0.99, f"{above} tissues with $d_t$ = 1.6 Gy\n"
-                            f"leave the axis, up to "
-                            f"{population[:, -1].max():.0f} %",
-               transform=right.transAxes, fontsize=7, color=GREY,
-               ha="right", va="top")
-    right.legend(loc="upper left")
+    right.set_xlim(1, 22.5)
+    right.set_xticks([2, 4, 6, 8, 10, 12, 14])
+    right.set_ylim(-3, ceiling)
     panel_tag(right, "(b)  every tissue in the library")
 
     fig.tight_layout()
@@ -513,7 +527,8 @@ def figure_2014_difference():
         print(line)
     print("     (2014 / version 3.0; the cord cannot move, dprol being zero)")
 
-    fig, (left, right) = plt.subplots(1, 2, figsize=(7.1, 2.9))
+    fig, (left, right) = plt.subplots(
+        1, 2, figsize=(7.4, 2.9), gridspec_kw={"width_ratios": [1.0, 1.3]})
 
     without, old, new = curves["Rectum"]
     left.plot(doses, without, color=GREY, ls=":", lw=1.4,
@@ -524,24 +539,40 @@ def figure_2014_difference():
     left.fill_between(doses, new, old, color=RED, alpha=0.13, lw=0)
     left.axvline(2.0, color=GREY, lw=0.7, ls=":")
     left.set_xlabel("dose per fraction (Gy)")
-    left.set_ylabel("rectum EQD2 (Gy)")
+    left.set_ylabel("rectum equivalent dose (Gy EQD2)")
     left.set_xlim(1, 12)
     left.legend(loc="upper left")
-    left.text(0.97, 0.30, "blue: time charged once\nred: charged a second time",
-              transform=left.transAxes, fontsize=7, color="#3a3a3a", ha="right")
-    panel_tag(left, "(a)  the rectum, and where the difference comes from")
+    panel_tag(left, "(a)  rectum, 60 Gy physical in every schedule")
 
+    # As a share, not in gray. The equivalent dose itself runs from 60 to 250 Gy
+    # across this axis, so a difference in gray is read against a moving
+    # denominator: -67 Gy at 12 Gy per fraction sits next to a 60 Gy prescription
+    # and invites the reading that the whole prescription has been removed, when
+    # it is 27 % of an equivalent dose of 252 Gy.
+    # The share is read only at and above the reference fraction size. Below it
+    # both values pass through zero and their ratio says nothing.
+    keep = doses >= 2.0
+    right.axhline(0, color=GREY, lw=0.7, zorder=0)
+    ends = []
     for name, colour in tissues:
         organ = library.organ(name)
         _, old, new = curves[name]
-        right.plot(doses, new - old, color=colour, lw=1.6,
-                   label=f"{name.lower()}, $D_\\mathrm{{prol}}$ = {organ.dprol:g}")
-    right.axhline(0, color=RED, lw=1.0, ls="--")
-    right.axvline(2.0, color=GREY, lw=0.7, ls=":")
+        share = 100 * (new[keep] - old[keep]) / old[keep]
+        right.plot(doses[keep], share, color=colour, lw=1.6)
+        ends.append((share[-1], f"{name.lower()}, "
+                     f"$D_\\mathrm{{prol}}$ = {organ.dprol:g}", colour))
+    # Two tissues share the same recovered dose and end within a hair of each
+    # other, so the labels are pushed apart before being written.
+    gap = 0.06 * (max(v for v, _, _ in ends) - min(v for v, _, _ in ends))
+    placed = None
+    for value, text, colour in sorted(ends, reverse=True):
+        placed = value if placed is None else min(value, placed - gap)
+        right.text(doses[-1] + 0.25, placed, text, fontsize=7, color=colour,
+                   ha="left", va="center")
     right.set_xlabel("dose per fraction (Gy)")
-    right.set_ylabel("version 3.0 minus 2014 (Gy)")
-    right.set_xlim(1, 12)
-    right.legend(loc="lower left")
+    right.set_ylabel("difference, share of the 2014 value (%)")
+    right.set_xlim(2, 17.4)
+    right.set_xticks([2, 4, 6, 8, 10, 12])
     panel_tag(right, "(b)  and what it scales with")
 
     fig.tight_layout()
