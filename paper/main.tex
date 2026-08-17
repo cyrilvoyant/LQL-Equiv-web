@@ -66,7 +66,7 @@ WebAssembly
 \toprule
 \textbf{Nr} & \textbf{Code metadata description} & \textbf{Metadata} \\
 \midrule
-C1 & Current code version & v3.0.0, commit \texttt{dda60cb} \\
+C1 & Current code version & v3.0.0, commit \texttt{d1a4f0c} \\
 C2 & Permanent link to code/repository & \url{https://github.com/cyrilvoyant/LQL-Equiv-web} \\
    & \quad archived release & \url{https://doi.org/10.5281/zenodo.21948623} \\
    & \quad running application & \url{https://cyrilvoyant.github.io/LQL-Equiv-web/} \\
@@ -95,7 +95,7 @@ the problem and not as settled prevalence estimates, and the case for this softw
 
 Part of that dispersion is not disagreement about radiobiology but about vocabulary. Identical parameters yield substantially different reported \texttt{EQD2}
 values depending on whether proliferation is applied to the evaluated schedule only or symmetrically to the evaluated and the reference schedule. For one
-head-and-neck course the two conventions differ by 15\,Gy (Section~\ref{sec:examples}); both are defensible, and a value reported without its convention cannot be reconciled with another. This software therefore states its own convention as an equation rather than in prose. Three modelling elements are needed and are routinely omitted. First, the linear-quadratic model is widely held to overestimate cell kill at the fraction sizes used in stereotactic treatments, although the evidence is tissue- and endpoint-dependent and the point is not settled \cite{astrahan2008,guckenberger2013,brown2014}; the linear-quadratic-linear
+head-and-neck course the two definitions differ by 15\,Gy (Section~\ref{sec:examples}). Both are defensible. Neither can be checked against the other unless the software says which one it computed, which is why the one used here is written as an equation. Three modelling elements are needed and are routinely omitted. First, the linear-quadratic model is widely held to overestimate cell kill at the fraction sizes used in stereotactic treatments, although the evidence is tissue- and endpoint-dependent and the point is not settled \cite{astrahan2008,guckenberger2013,brown2014}; the linear-quadratic-linear
 (\texttt{LQL}) form of Astrahan replaces the quadratic term by a straight line above a transition dose. Second, overall treatment time matters: accelerated
 proliferation after a kick-off time consumes dose every day, so an interruption is not neutral \cite{withers1988,dale1989,dale2024}. Third, two fractions a day
 require the incomplete repair correction \cite{thames1985}. A tool that omits any of the three cannot answer the questions above under these model assumptions; a deliberately simpler model can of course answer a narrower question. 
@@ -108,7 +108,7 @@ calendar conversion (\texttt{schedule.py}) and the radiobiological library (\tex
 the Python standard library, which keeps it auditable and makes it light enough to ship to a browser. 
 
 \subsection{Architecture}
-The interface, \texttt{app/streamlit\_app.py}, is a \texttt{Streamlit} application. The delivery layer, \texttt{tools/build\_stlite.py}, embeds the sources into a single \texttt{HTML} page of about 112\,kB, which loads a version-pinned \texttt{stlite} \cite{stlite} that in turn runs \texttt{Streamlit} on \texttt{Pyodide} \cite{pyodide}; the page carries the model but not the runtime. GitHub Actions rebuilds and publishes that page on every push; the whole cycle takes about 25\,s. The consequence is architectural rather than cosmetic (Fig.~\ref{fig:interface}). No computation happens on a server: each visitor's browser downloads static files and executes the model locally. The precise claim, since it matters when a physicist types a real patient schedule, is this: the page embeds the model source itself, fetches the version-pinned stlite and Pyodide runtime from a public content-delivery network on first load, carries no analytics and submits no form. The network therefore sees that the page was visited, and never what was entered into it. A reader who must rely on that can confirm it from the browser network panel; the delivery script is part of the repository. Concurrent use is limited only by the number of visitors own machines.
+The interface, \texttt{app/streamlit\_app.py}, is a \texttt{Streamlit} application. The delivery layer, \texttt{tools/build\_stlite.py}, embeds the sources into a single \texttt{HTML} page of about 128\,kB, which loads a version-pinned \texttt{stlite} \cite{stlite} that in turn runs \texttt{Streamlit} on \texttt{Pyodide} \cite{pyodide}; the page carries the model but not the runtime. GitHub Actions rebuilds and publishes that page on every push; the whole cycle takes about 25\,s. The consequence is architectural rather than cosmetic (Fig.~\ref{fig:interface}). No computation happens on a server: each visitor's browser downloads static files and executes the model locally. The precise claim, since it matters when a physicist types a real patient schedule, is this: the page embeds the model source itself, fetches the version-pinned stlite and Pyodide runtime from a public content-delivery network on first load, carries no analytics and submits no form. The network therefore sees that the page was visited, and never what was entered into it. A reader who must rely on that can confirm it from the browser network panel; the delivery script is part of the repository. Nothing is computed on a server, so one visitor cannot slow another. The repository serves a 128\,kB page and nothing else; the ceiling is the GitHub Pages allowance, of the order of a million loads a month.
     \begin{figure}
     \centering
     \includegraphics[width=\textwidth]{figures/fig4_interface.png}
@@ -293,7 +293,7 @@ on a reference schedule, a wide fractionation grid from 1.2 to 20\,Gy per fracti
     Tolerance $\delta$, values clearing it    & 0.05\,Gy, 34\,418 of 34\,418 \\[0.5ex]
     Searches replayed against the full grid   & 10\,554 \\
     Disagreements with the exhaustive search  & 0 \\
-    Closed-form tests, no reference in the loop & 16, of which 4 separate the two conventions \\
+    Closed-form tests, no reference in the loop & 16, of which 4 isolate the time handling \\
     Unit and non-regression tests             & 51 in total \\
     \bottomrule
     \end{tabular}
