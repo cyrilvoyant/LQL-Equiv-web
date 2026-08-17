@@ -48,9 +48,10 @@ REPOSITORY_URL = "https://github.com/cyrilvoyant/LQL-Equiv-web"
 #: For a suspected error, a better-sourced parameter, or a collaboration.
 CONTACT_EMAIL = "cyril.voyant@minesparis.psl.eu"
 
-ZENODO_DOI = "10.5281/zenodo.21948624"
-#: Zenodo's concept DOI always resolves to the most recent version.
-ZENODO_CONCEPT_DOI = "10.5281/zenodo.21948623"
+#: Zenodo's concept DOI. It always resolves to the most recent version, which
+#: is what a citation should point at for software that keeps improving.
+ZENODO_DOI = "10.5281/zenodo.21948623"
+ZENODO_CONCEPT_DOI = ZENODO_DOI
 #: The 2014 MATLAB release, from which the radiobiological library is taken.
 ZENODO_DOI_2014 = "10.5281/zenodo.16739883"
 
@@ -889,9 +890,11 @@ def main() -> None:
         st.caption("BibTeX")
         st.code(SOFTWARE_BIBTEX, language="bibtex")
         st.caption(
-            f"To cite all versions rather than this one, use the concept DOI "
-            f"[{ZENODO_CONCEPT_DOI}](https://doi.org/{ZENODO_CONCEPT_DOI}), which "
-            f"always resolves to the most recent release."
+            f"The DOI above is the concept DOI: it always resolves to the most "
+            f"recent release, which is the right target for software that keeps "
+            f"improving. Each release also carries its own version DOI, listed on "
+            f"[the Zenodo record](https://doi.org/{ZENODO_CONCEPT_DOI}), for "
+            f"citing one exact archive."
         )
 
         st.markdown("#### References")

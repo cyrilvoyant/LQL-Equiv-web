@@ -24,13 +24,13 @@ authors:
 
 identifiers:
   - type: doi
-    value: "10.5281/zenodo.21948624"
+    value: "10.5281/zenodo.21948623"
     description: "Version 3.0.0"
   - type: doi
     value: "10.5281/zenodo.21948623"
     description: "All versions"
 
-doi: "10.5281/zenodo.21948624"
+doi: "10.5281/zenodo.21948623"
 repository-code: "https://github.com/cyrilvoyant/LQL-Equiv-web"
 url: "https://github.com/cyrilvoyant/LQL-Equiv-web"
 license: "MIT"

@@ -1,6 +1,6 @@
 # LQL-Equiv
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21948624.svg)](https://doi.org/10.5281/zenodo.21948624)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21948623.svg)](https://doi.org/10.5281/zenodo.21948623)
 [![tests](https://github.com/cyrilvoyant/LQL-Equiv-web/actions/workflows/ci.yml/badge.svg)](https://github.com/cyrilvoyant/LQL-Equiv-web/actions/workflows/ci.yml)
 [![licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
 
@@ -275,7 +275,7 @@ If you use this software, cite the methodology paper and the software (see
 - This software: Voyant C, Julian D. LQL-Equiv-web: a Python and web
   implementation of biologically equivalent dose calculation in radiotherapy
   (Version 3.0.0) [Computer software]. Zenodo, 2026.
-  [doi:10.5281/zenodo.21948624](https://doi.org/10.5281/zenodo.21948624) —
+  [doi:10.5281/zenodo.21948623](https://doi.org/10.5281/zenodo.21948623) —
   use the concept DOI
   [10.5281/zenodo.21948623](https://doi.org/10.5281/zenodo.21948623) to cite all
   versions.
