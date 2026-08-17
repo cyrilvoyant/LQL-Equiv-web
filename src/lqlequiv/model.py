@@ -607,11 +607,11 @@ def compute(
     # incomplete-repair correction is only defined on the quadratic branch.
     oar_valid = not (
         prescription.bifractionated
-        and any(c.dose_per_fraction > oar.dt for c in prescription.courses)
+        and any(c.dose_per_fraction >= oar.dt for c in prescription.courses)
     )
     tumour_valid = not (
         prescription.bifractionated
-        and any(c.dose_per_fraction > tum.dt for c in prescription.courses)
+        and any(c.dose_per_fraction >= tum.dt for c in prescription.courses)
     )
 
     return Result(
@@ -811,7 +811,7 @@ def _compute_adjusted(
 
     valid = {
         key: not (prescription.bifractionated
-                  and any(c.dose_per_fraction > tissue.dt for c in prescription.courses))
+                  and any(c.dose_per_fraction >= tissue.dt for c in prescription.courses))
         for key, tissue in (("oar", oar), ("tum", tum))
     }
     return Result(

@@ -123,6 +123,6 @@ def test_the_manuscript_figure_replays_the_legacy_behaviour(golden_path):
                 identical += a == b
                 largest = max(largest, abs(b - a))
 
-    assert total == 34418
+    assert total == 34403
     assert identical / total == pytest.approx(0.920, abs=5e-4)
     assert largest == pytest.approx(0.04, abs=5e-4)
