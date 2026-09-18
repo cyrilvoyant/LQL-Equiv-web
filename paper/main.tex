@@ -15,14 +15,16 @@
 \setcounter{totalnumber}{4}
 \usepackage{url}
 \usepackage[hidelinks]{hyperref}
-\usepackage{orcidlink} 
+\usepackage{orcidlink}
+\usepackage{xcolor}
+\newcommand{\cyr}[1]{\textcolor{red}{#1}}
 \journal{SoftwareX}
 
 \begin{document}
 
 \begin{frontmatter}
 
-\title{\texttt{LQL-Equiv-Web}: a Browser-Based Implementation of Linear-Quadratic-Linear Dose Equivalence for Radiotherapy}
+\title{\cyr{\texttt{LQL-Equiv-Web}: a Python Library and Browser Application for Linear-Quadratic-Linear Dose Equivalence in Radiotherapy}}
 
 \author[label1]{Cyril Voyant\corref{cor1}\orcidlink{0000-0003-0242-7377}}
 \ead{cyril.voyant@minesparis.psl.eu}
@@ -341,7 +343,7 @@ conventional arm of \texttt{PROFIT}, which demonstrated non-inferiority without 
 \subsection{Limitations}\label{sec:limitations}
 The software is a model comparison tool and not a treatment planning system: it knows nothing of dose distribution, volume effects or plan constraints, and
 voxel-level accumulation \cite{singh2018,calvo2026} is outside its scope. Two consequences follow for the toxicity endpoints and should be stated plainly.
-Equation~\eqref{eq:ntcp} is a point estimate on a single equivalent dose, whereas the Lyman formalism is defined on a dose-volume histogram through an equivalent uniform dose \cite{niemierko1997} and is established near 2\,Gy per fraction; away from that fraction size, and for a serial organ where the relevant quantity is a near-maximum rather than a mean, it should be read as indicative. Equation~\eqref{eq:tcp} uses $\gamma_{50}$ and $\texttt{TCD}_{50}$ values that the 2014 library carried but never used, so the tumor control probability is newly exposed and unlike the equivalent dose, has not itself been validated against clinical outcome. The radiobiological library is the one published in 2014; its \texttt{Lyman} parameters fall in the range of the \texttt{Emami/Burman} fits \cite{emami1991,burman1991}, which is their probable but unverified origin, and the provenance of every value is recorded in \texttt{docs/PARAMETERS.md}. Model parameters carry uncertainty larger than many of the differences the software can display, which is why the $\alpha/\beta$ band exists and why the therapeutic window declines to name a best schedule when the uncertainty bars overlap. It is intended for research and education and is not a medical device. Stated operationally rather than generically, its outputs must not be used to choose or modify a prescription, to compute the compensation for a real interruption, to sum dose in a reirradiation decision, to accept or reject a treatment plan, to support a consent discussion, or to predict complication or control probability for an individual patient. What it is for is comparing schedules under a stated model, seeing how far that comparison moves when the assumptions move, and teaching why.
+Equation~\eqref{eq:ntcp} is a point estimate on a single equivalent dose, whereas the Lyman formalism is defined on a dose-volume histogram through an equivalent uniform dose \cite{niemierko1997} and is established near 2\,Gy per fraction; away from that fraction size, and for a serial organ where the relevant quantity is a near-maximum rather than a mean, it should be read as indicative. Equation~\eqref{eq:tcp} uses $\gamma_{50}$ and $\texttt{TCD}_{50}$ values that the 2014 library carried but never used, so the tumor control probability is newly exposed and unlike the equivalent dose, has not itself been validated against clinical outcome. \cyr{These two parameters are also the ones that weigh most on the result. On voxel-based equivalent doses of rectal cancer patients, Tai et al. found that $D_{50}$ (here $\texttt{TCD}_{50}$) has the largest influence, followed by $\gamma$, while $\alpha/\beta$ has little effect \cite{tai2025}. Their work also shows what a point estimate cannot: how the parameters move the probability on a real patient anatomy. A dose-volume histogram or a planning \texttt{CT} dose as input would allow the same exploration here, and is the next planned extension of the software.} The radiobiological library is the one published in 2014; its \texttt{Lyman} parameters fall in the range of the \texttt{Emami/Burman} fits \cite{emami1991,burman1991}, which is their probable but unverified origin, and the provenance of every value is recorded in \texttt{docs/PARAMETERS.md}. Model parameters carry uncertainty larger than many of the differences the software can display\cyr{~\cite{tai2025}}, which is why the $\alpha/\beta$ band exists and why the therapeutic window declines to name a best schedule when the uncertainty bars overlap. It is intended for research and education and is not a medical device. Stated operationally rather than generically, its outputs must not be used to choose or modify a prescription, to compute the compensation for a real interruption, to sum dose in a reirradiation decision, to accept or reject a treatment plan, to support a consent discussion, or to predict complication or control probability for an individual patient. What it is for is comparing schedules under a stated model, seeing how far that comparison moves when the assumptions move, and teaching why.
 
 \section{Worked cases} \label{sec:examples}
 Three cases are given. Each answers a question a department asks. The library is called in a few lines:
