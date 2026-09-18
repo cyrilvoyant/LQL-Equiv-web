@@ -14,14 +14,5 @@ htmlcov/
 web/index.html
 web/robots.txt
 web/sitemap.xml
-paper/figures/*.pdf
-!paper/figures/fig4_interface.png
-paper/*.aux
-paper/*.bbl
-paper/*.blg
-paper/*.log
-paper/*.out
-paper/*.pdf
-paper/main.bbl
-paper/main.spl
-paper/*.log
+# Manuscript sources are kept outside the public repository
+paper/
