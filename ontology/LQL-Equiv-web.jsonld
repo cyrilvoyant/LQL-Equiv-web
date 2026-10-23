@@ -1,197 +1,548 @@
 {
   "@context": {
+    "": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#",
     "@vocab": "https://schema.org/",
-    "wsem": "https://w3id.org/websemantic/ns#"
+    "dcterms": "http://purl.org/dc/terms/",
+    "owl": "http://www.w3.org/2002/07/owl#",
+    "qk": "http://qudt.org/vocab/quantitykind/",
+    "skos": "http://www.w3.org/2004/02/skos/core#",
+    "unit": "http://qudt.org/vocab/unit/",
+    "wsem": "https://w3id.org/websemantic/ns#",
+    "xsd": "http://www.w3.org/2001/XMLSchema#"
   },
-  "@type": "SoftwareSourceCode",
-  "@id": "https://doi.org/10.5281/zenodo.21948623",
-  "name": "LQL-Equiv-web 3.0: biologically equivalent doses in radiotherapy (Python, browser)",
-  "description": "Computes BED, equivalent doses (EQD2), NTCP, TCP and radiation-induced cancer risk under the linear-quadratic-linear model, for 34 organs at risk and 20 tumour sites, over successive courses.",
-  "codeRepository": "https://github.com/cyrilvoyant/LQL-Equiv-web",
-  "license": "MIT",
-  "programmingLanguage": "Python",
-  "keywords": [
-    "radiotherapy",
-    "biologically effective dose",
-    "EQD2",
-    "linear-quadratic-linear",
-    "NTCP",
-    "TCP"
-  ],
-  "dateModified": "2026-10-23",
-  "author": [
+  "@graph": [
     {
-      "@type": "Person",
-      "name": "Cyril Voyant",
-      "@id": "https://orcid.org/0000-0003-0242-7377"
+      "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#out4",
+      "@type": [
+        "wsem:OutputVariable",
+        "PropertyValueSpecification"
+      ],
+      "description": "Dose équivalente tumeur au fractionnement de référence ; null si invalide ou saturée.",
+      "name": "eqd_tumour_total",
+      "skos:definition": "Dose équivalente tumeur au fractionnement de référence ; null si invalide ou saturée.",
+      "skos:prefLabel": "eqd_tumour_total",
+      "unitCode": {
+        "@id": "unit:GRAY"
+      },
+      "unitText": "Gy",
+      "valueRequired": true,
+      "wsem:apiVariable": "eqd_tumour_total",
+      "wsem:canonicalUnit": {
+        "@id": "unit:GRAY"
+      },
+      "wsem:quantityKind": {
+        "@id": "qk:AbsorbedDose"
+      }
     },
     {
+      "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#in0",
+      "@type": [
+        "wsem:ParameterDefinition",
+        "PropertyValueSpecification"
+      ],
+      "description": "Nom exact dans la bibliothèque radiobiologique ; ne définit pas un patient.",
+      "name": "organ",
+      "skos:definition": "Nom exact dans la bibliothèque radiobiologique ; ne définit pas un patient.",
+      "skos:prefLabel": "organ",
+      "valueRequired": true,
+      "wsem:apiVariable": "organ"
+    },
+    {
+      "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#out8",
+      "@type": [
+        "wsem:OutputVariable",
+        "PropertyValueSpecification"
+      ],
+      "description": "Durée calendaire native du cursus, organe.",
+      "name": "overall_days_oar",
+      "skos:definition": "Durée calendaire native du cursus, organe.",
+      "skos:prefLabel": "overall_days_oar",
+      "unitCode": {
+        "@id": "unit:DAY"
+      },
+      "unitText": "d",
+      "valueRequired": true,
+      "wsem:apiVariable": "overall_days_oar",
+      "wsem:canonicalUnit": {
+        "@id": "unit:DAY"
+      },
+      "wsem:quantityKind": {
+        "@id": "qk:Time"
+      }
+    },
+    {
+      "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#software",
+      "@type": [
+        "wsem:Software",
+        "SoftwareSourceCode"
+      ],
+      "author": [
+        {
+          "@id": "https://orcid.org/0000-0003-0242-7377"
+        },
+        {
+          "@id": "_:N8c0c9080832b4755b7b25a9a52b914c4"
+        }
+      ],
+      "citation": {
+        "@id": "https://doi.org/10.1016/j.softx.2026.103085"
+      },
+      "codeRepository": {
+        "@id": "https://github.com/cyrilvoyant/LQL-Equiv-web"
+      },
+      "dateModified": {
+        "@type": "xsd:date",
+        "@value": "2026-10-23"
+      },
+      "dcterms:modified": "2026-10-23",
+      "description": "Computes BED, equivalent doses (EQD2), NTCP, TCP and radiation-induced cancer risk under the linear-quadratic-linear model, for 34 organs at risk and 20 tumour sites, over successive courses.",
+      "identifier": {
+        "@id": "https://doi.org/10.5281/zenodo.21948623"
+      },
+      "keywords": [
+        "radiotherapy",
+        "biologically effective dose",
+        "EQD2",
+        "linear-quadratic-linear",
+        "NTCP",
+        "TCP"
+      ],
+      "license": "MIT",
+      "name": "LQL-Equiv-web 3.0: biologically equivalent doses in radiotherapy (Python, browser)",
+      "owl:sameAs": {
+        "@id": "https://doi.org/10.5281/zenodo.21948623"
+      },
+      "programmingLanguage": "Python",
+      "wsem:conceptDOI": "https://doi.org/10.5281/zenodo.21948623",
+      "wsem:declaresOutput": [
+        {
+          "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#out0"
+        },
+        {
+          "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#out1"
+        },
+        {
+          "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#out2"
+        },
+        {
+          "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#out3"
+        },
+        {
+          "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#out4"
+        },
+        {
+          "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#out5"
+        },
+        {
+          "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#out6"
+        },
+        {
+          "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#out7"
+        },
+        {
+          "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#out8"
+        },
+        {
+          "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#out9"
+        },
+        {
+          "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#out10"
+        },
+        {
+          "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#out11"
+        },
+        {
+          "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#out12"
+        },
+        {
+          "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#out13"
+        }
+      ],
+      "wsem:declaresParameter": [
+        {
+          "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#in0"
+        },
+        {
+          "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#in1"
+        },
+        {
+          "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#in2"
+        },
+        {
+          "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#in3"
+        },
+        {
+          "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#in4"
+        },
+        {
+          "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#in5"
+        },
+        {
+          "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#in6"
+        }
+      ]
+    },
+    {
+      "@id": "_:N8c0c9080832b4755b7b25a9a52b914c4",
       "@type": "Person",
       "name": "Daniel Julian"
-    }
-  ],
-  "citation": {
-    "@type": "ScholarlyArticle",
-    "@id": "https://doi.org/10.1016/j.softx.2026.103085",
-    "name": "C. Voyant, D. Julian. LQL-Equiv. SoftwareX 36 (2026) 103085; and Voyant et al., Reports of Practical Oncology and Radiotherapy 19(1) (2014) 47–55"
-  },
-  "wsem:declaresParameter": [
-    {
-      "@type": "PropertyValueSpecification",
-      "name": "organ",
-      "description": "Nom exact dans la bibliothèque radiobiologique ; ne définit pas un patient.",
-      "valueRequired": true
     },
     {
-      "@type": "PropertyValueSpecification",
-      "name": "tumour_site",
-      "description": "Nom exact dans la bibliothèque ; cas fictif uniquement.",
-      "valueRequired": true
-    },
-    {
-      "@type": "PropertyValueSpecification",
-      "name": "dose_per_fraction",
-      "description": "Dose physique pour chaque fraction du seul cursus.",
-      "valueRequired": true,
-      "unitText": "Gy",
-      "unitCode": "http://qudt.org/vocab/unit/GRAY"
-    },
-    {
-      "@type": "PropertyValueSpecification",
-      "name": "n_fractions",
-      "description": "Nombre entier de fractions du seul cursus.",
-      "valueRequired": true,
-      "unitText": "count",
-      "unitCode": "http://qudt.org/vocab/unit/NUM"
-    },
-    {
-      "@type": "PropertyValueSpecification",
-      "name": "gap_days",
-      "description": "Intervalle avant le cursus en jours, dans la convention calendaire native.",
-      "valueRequired": true,
-      "unitText": "d",
-      "unitCode": "http://qudt.org/vocab/unit/DAY",
-      "defaultValue": "0"
-    },
-    {
-      "@type": "PropertyValueSpecification",
-      "name": "reference_dose",
-      "description": "Dose physique par fraction du régime auquel EQD se rapporte ; EQD2 seulement si 2 Gy.",
-      "valueRequired": true,
-      "unitText": "Gy",
-      "unitCode": "http://qudt.org/vocab/unit/GRAY",
-      "defaultValue": "2"
-    },
-    {
-      "@type": "PropertyValueSpecification",
-      "name": "bifractionated",
-      "description": "yes active deux fractions par jour et un intervalle natif fixe de 6 h ; no sinon.",
-      "valueRequired": true,
-      "defaultValue": "no"
-    }
-  ],
-  "wsem:declaresOutput": [
-    {
-      "@type": "PropertyValueSpecification",
-      "name": "physical_dose_gy",
-      "description": "Dose physique totale = dose par fraction × fractions ; distincte de BED.",
-      "valueRequired": true,
-      "unitText": "Gy",
-      "unitCode": "http://qudt.org/vocab/unit/GRAY"
-    },
-    {
-      "@type": "PropertyValueSpecification",
-      "name": "bed_oar",
-      "description": "BED organe native ; null si non calculable.",
-      "valueRequired": true,
-      "unitText": "Gy",
-      "unitCode": "http://qudt.org/vocab/unit/GRAY"
-    },
-    {
-      "@type": "PropertyValueSpecification",
-      "name": "bed_tumour",
-      "description": "BED tumeur native ; null si non calculable.",
-      "valueRequired": true,
-      "unitText": "Gy",
-      "unitCode": "http://qudt.org/vocab/unit/GRAY"
-    },
-    {
-      "@type": "PropertyValueSpecification",
-      "name": "eqd_oar_total",
-      "description": "Dose équivalente organe au fractionnement de référence ; null si invalide ou saturée.",
-      "valueRequired": true,
-      "unitText": "Gy",
-      "unitCode": "http://qudt.org/vocab/unit/GRAY"
-    },
-    {
-      "@type": "PropertyValueSpecification",
-      "name": "eqd_tumour_total",
-      "description": "Dose équivalente tumeur au fractionnement de référence ; null si invalide ou saturée.",
-      "valueRequired": true,
-      "unitText": "Gy",
-      "unitCode": "http://qudt.org/vocab/unit/GRAY"
-    },
-    {
-      "@type": "PropertyValueSpecification",
-      "name": "ntcp_percent",
-      "description": "Probabilité modélisée de complication ; null si EQD invalide ou coefficient absent.",
-      "valueRequired": true,
-      "unitText": "%",
-      "unitCode": "http://qudt.org/vocab/unit/PERCENT"
-    },
-    {
-      "@type": "PropertyValueSpecification",
-      "name": "tcp_percent",
-      "description": "Probabilité modélisée de contrôle tumoral ; null si EQD invalide ou coefficient absent.",
-      "valueRequired": true,
-      "unitText": "%",
-      "unitCode": "http://qudt.org/vocab/unit/PERCENT"
-    },
-    {
-      "@type": "PropertyValueSpecification",
-      "name": "cancer_risk",
-      "description": "Indice natif du modèle de risque secondaire ; dépend des coefficients tabulés, ne pas interpréter comme pourcentage clinique.",
-      "valueRequired": true
-    },
-    {
-      "@type": "PropertyValueSpecification",
-      "name": "overall_days_oar",
-      "description": "Durée calendaire native du cursus, organe.",
-      "valueRequired": true,
-      "unitText": "d",
-      "unitCode": "http://qudt.org/vocab/unit/DAY"
-    },
-    {
-      "@type": "PropertyValueSpecification",
-      "name": "overall_days_tumour",
-      "description": "Durée calendaire native du cursus, tumeur.",
-      "valueRequired": true,
-      "unitText": "d",
-      "unitCode": "http://qudt.org/vocab/unit/DAY"
-    },
-    {
-      "@type": "PropertyValueSpecification",
-      "name": "oar_total_valid",
+      "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#out10",
+      "@type": [
+        "wsem:OutputVariable",
+        "PropertyValueSpecification"
+      ],
       "description": "Validité native du total organe.",
-      "valueRequired": true
+      "name": "oar_total_valid",
+      "skos:definition": "Validité native du total organe.",
+      "skos:prefLabel": "oar_total_valid",
+      "valueRequired": true,
+      "wsem:apiVariable": "oar_total_valid"
     },
     {
-      "@type": "PropertyValueSpecification",
-      "name": "tumour_total_valid",
-      "description": "Validité native du total tumeur.",
-      "valueRequired": true
+      "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#out7",
+      "@type": [
+        "wsem:OutputVariable",
+        "PropertyValueSpecification"
+      ],
+      "description": "Indice natif du modèle de risque secondaire ; dépend des coefficients tabulés, ne pas interpréter comme pourcentage clinique.",
+      "name": "cancer_risk",
+      "skos:definition": "Indice natif du modèle de risque secondaire ; dépend des coefficients tabulés, ne pas interpréter comme pourcentage clinique.",
+      "skos:prefLabel": "cancer_risk",
+      "valueRequired": true,
+      "wsem:apiVariable": "cancer_risk"
     },
     {
-      "@type": "PropertyValueSpecification",
-      "name": "oar_saturated",
+      "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#out3",
+      "@type": [
+        "wsem:OutputVariable",
+        "PropertyValueSpecification"
+      ],
+      "description": "Dose équivalente organe au fractionnement de référence ; null si invalide ou saturée.",
+      "name": "eqd_oar_total",
+      "skos:definition": "Dose équivalente organe au fractionnement de référence ; null si invalide ou saturée.",
+      "skos:prefLabel": "eqd_oar_total",
+      "unitCode": {
+        "@id": "unit:GRAY"
+      },
+      "unitText": "Gy",
+      "valueRequired": true,
+      "wsem:apiVariable": "eqd_oar_total",
+      "wsem:canonicalUnit": {
+        "@id": "unit:GRAY"
+      },
+      "wsem:quantityKind": {
+        "@id": "qk:AbsorbedDose"
+      }
+    },
+    {
+      "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#in1",
+      "@type": [
+        "wsem:ParameterDefinition",
+        "PropertyValueSpecification"
+      ],
+      "description": "Nom exact dans la bibliothèque ; cas fictif uniquement.",
+      "name": "tumour_site",
+      "skos:definition": "Nom exact dans la bibliothèque ; cas fictif uniquement.",
+      "skos:prefLabel": "tumour_site",
+      "valueRequired": true,
+      "wsem:apiVariable": "tumour_site"
+    },
+    {
+      "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#in3",
+      "@type": [
+        "wsem:ParameterDefinition",
+        "PropertyValueSpecification"
+      ],
+      "description": "Nombre entier de fractions du seul cursus.",
+      "name": "n_fractions",
+      "skos:definition": "Nombre entier de fractions du seul cursus.",
+      "skos:prefLabel": "n_fractions",
+      "unitCode": {
+        "@id": "unit:NUM"
+      },
+      "unitText": "count",
+      "valueRequired": true,
+      "wsem:apiVariable": "n_fractions",
+      "wsem:canonicalUnit": {
+        "@id": "unit:NUM"
+      },
+      "wsem:quantityKind": {
+        "@id": "qk:Count"
+      }
+    },
+    {
+      "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#in4",
+      "@type": [
+        "wsem:ParameterDefinition",
+        "PropertyValueSpecification"
+      ],
+      "defaultValue": "0",
+      "description": "Intervalle avant le cursus en jours, dans la convention calendaire native.",
+      "name": "gap_days",
+      "skos:definition": "Intervalle avant le cursus en jours, dans la convention calendaire native.",
+      "skos:prefLabel": "gap_days",
+      "unitCode": {
+        "@id": "unit:DAY"
+      },
+      "unitText": "d",
+      "valueRequired": true,
+      "wsem:apiVariable": "gap_days",
+      "wsem:canonicalUnit": {
+        "@id": "unit:DAY"
+      },
+      "wsem:quantityKind": {
+        "@id": "qk:Time"
+      }
+    },
+    {
+      "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#out9",
+      "@type": [
+        "wsem:OutputVariable",
+        "PropertyValueSpecification"
+      ],
+      "description": "Durée calendaire native du cursus, tumeur.",
+      "name": "overall_days_tumour",
+      "skos:definition": "Durée calendaire native du cursus, tumeur.",
+      "skos:prefLabel": "overall_days_tumour",
+      "unitCode": {
+        "@id": "unit:DAY"
+      },
+      "unitText": "d",
+      "valueRequired": true,
+      "wsem:apiVariable": "overall_days_tumour",
+      "wsem:canonicalUnit": {
+        "@id": "unit:DAY"
+      },
+      "wsem:quantityKind": {
+        "@id": "qk:Time"
+      }
+    },
+    {
+      "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#in2",
+      "@type": [
+        "wsem:ParameterDefinition",
+        "PropertyValueSpecification"
+      ],
+      "description": "Dose physique pour chaque fraction du seul cursus.",
+      "name": "dose_per_fraction",
+      "skos:definition": "Dose physique pour chaque fraction du seul cursus.",
+      "skos:prefLabel": "dose_per_fraction",
+      "unitCode": {
+        "@id": "unit:GRAY"
+      },
+      "unitText": "Gy",
+      "valueRequired": true,
+      "wsem:apiVariable": "dose_per_fraction",
+      "wsem:canonicalUnit": {
+        "@id": "unit:GRAY"
+      },
+      "wsem:quantityKind": {
+        "@id": "qk:AbsorbedDose"
+      }
+    },
+    {
+      "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#in6",
+      "@type": [
+        "wsem:ParameterDefinition",
+        "PropertyValueSpecification"
+      ],
+      "defaultValue": "no",
+      "description": "yes active deux fractions par jour et un intervalle natif fixe de 6 h ; no sinon.",
+      "name": "bifractionated",
+      "skos:definition": "yes active deux fractions par jour et un intervalle natif fixe de 6 h ; no sinon.",
+      "skos:prefLabel": "bifractionated",
+      "valueRequired": true,
+      "wsem:apiVariable": "bifractionated"
+    },
+    {
+      "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#out12",
+      "@type": [
+        "wsem:OutputVariable",
+        "PropertyValueSpecification"
+      ],
       "description": "true si EQD organe à une borne de recherche.",
-      "valueRequired": true
+      "name": "oar_saturated",
+      "skos:definition": "true si EQD organe à une borne de recherche.",
+      "skos:prefLabel": "oar_saturated",
+      "valueRequired": true,
+      "wsem:apiVariable": "oar_saturated"
     },
     {
-      "@type": "PropertyValueSpecification",
-      "name": "tumour_saturated",
+      "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#out11",
+      "@type": [
+        "wsem:OutputVariable",
+        "PropertyValueSpecification"
+      ],
+      "description": "Validité native du total tumeur.",
+      "name": "tumour_total_valid",
+      "skos:definition": "Validité native du total tumeur.",
+      "skos:prefLabel": "tumour_total_valid",
+      "valueRequired": true,
+      "wsem:apiVariable": "tumour_total_valid"
+    },
+    {
+      "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#out0",
+      "@type": [
+        "wsem:OutputVariable",
+        "PropertyValueSpecification"
+      ],
+      "description": "Dose physique totale = dose par fraction × fractions ; distincte de BED.",
+      "name": "physical_dose_gy",
+      "skos:definition": "Dose physique totale = dose par fraction × fractions ; distincte de BED.",
+      "skos:prefLabel": "physical_dose_gy",
+      "unitCode": {
+        "@id": "unit:GRAY"
+      },
+      "unitText": "Gy",
+      "valueRequired": true,
+      "wsem:apiVariable": "physical_dose_gy",
+      "wsem:canonicalUnit": {
+        "@id": "unit:GRAY"
+      },
+      "wsem:quantityKind": {
+        "@id": "qk:AbsorbedDose"
+      }
+    },
+    {
+      "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#out6",
+      "@type": [
+        "wsem:OutputVariable",
+        "PropertyValueSpecification"
+      ],
+      "description": "Probabilité modélisée de contrôle tumoral ; null si EQD invalide ou coefficient absent.",
+      "name": "tcp_percent",
+      "skos:definition": "Probabilité modélisée de contrôle tumoral ; null si EQD invalide ou coefficient absent.",
+      "skos:prefLabel": "tcp_percent",
+      "unitCode": {
+        "@id": "unit:PERCENT"
+      },
+      "unitText": "%",
+      "valueRequired": true,
+      "wsem:apiVariable": "tcp_percent",
+      "wsem:canonicalUnit": {
+        "@id": "unit:PERCENT"
+      },
+      "wsem:quantityKind": {
+        "@id": "qk:DimensionlessRatio"
+      }
+    },
+    {
+      "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#out13",
+      "@type": [
+        "wsem:OutputVariable",
+        "PropertyValueSpecification"
+      ],
       "description": "true si EQD tumeur à une borne de recherche.",
-      "valueRequired": true
+      "name": "tumour_saturated",
+      "skos:definition": "true si EQD tumeur à une borne de recherche.",
+      "skos:prefLabel": "tumour_saturated",
+      "valueRequired": true,
+      "wsem:apiVariable": "tumour_saturated"
+    },
+    {
+      "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#in5",
+      "@type": [
+        "wsem:ParameterDefinition",
+        "PropertyValueSpecification"
+      ],
+      "defaultValue": "2",
+      "description": "Dose physique par fraction du régime auquel EQD se rapporte ; EQD2 seulement si 2 Gy.",
+      "name": "reference_dose",
+      "skos:definition": "Dose physique par fraction du régime auquel EQD se rapporte ; EQD2 seulement si 2 Gy.",
+      "skos:prefLabel": "reference_dose",
+      "unitCode": {
+        "@id": "unit:GRAY"
+      },
+      "unitText": "Gy",
+      "valueRequired": true,
+      "wsem:apiVariable": "reference_dose",
+      "wsem:canonicalUnit": {
+        "@id": "unit:GRAY"
+      },
+      "wsem:quantityKind": {
+        "@id": "qk:AbsorbedDose"
+      }
+    },
+    {
+      "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#out2",
+      "@type": [
+        "wsem:OutputVariable",
+        "PropertyValueSpecification"
+      ],
+      "description": "BED tumeur native ; null si non calculable.",
+      "name": "bed_tumour",
+      "skos:definition": "BED tumeur native ; null si non calculable.",
+      "skos:prefLabel": "bed_tumour",
+      "unitCode": {
+        "@id": "unit:GRAY"
+      },
+      "unitText": "Gy",
+      "valueRequired": true,
+      "wsem:apiVariable": "bed_tumour",
+      "wsem:canonicalUnit": {
+        "@id": "unit:GRAY"
+      },
+      "wsem:quantityKind": {
+        "@id": "qk:AbsorbedDose"
+      }
+    },
+    {
+      "@id": "https://orcid.org/0000-0003-0242-7377",
+      "@type": "Person",
+      "name": "Cyril Voyant"
+    },
+    {
+      "@id": "https://doi.org/10.1016/j.softx.2026.103085",
+      "@type": "ScholarlyArticle",
+      "name": "C. Voyant, D. Julian. LQL-Equiv. SoftwareX 36 (2026) 103085; and Voyant et al., Reports of Practical Oncology and Radiotherapy 19(1) (2014) 47–55"
+    },
+    {
+      "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#out5",
+      "@type": [
+        "wsem:OutputVariable",
+        "PropertyValueSpecification"
+      ],
+      "description": "Probabilité modélisée de complication ; null si EQD invalide ou coefficient absent.",
+      "name": "ntcp_percent",
+      "skos:definition": "Probabilité modélisée de complication ; null si EQD invalide ou coefficient absent.",
+      "skos:prefLabel": "ntcp_percent",
+      "unitCode": {
+        "@id": "unit:PERCENT"
+      },
+      "unitText": "%",
+      "valueRequired": true,
+      "wsem:apiVariable": "ntcp_percent",
+      "wsem:canonicalUnit": {
+        "@id": "unit:PERCENT"
+      },
+      "wsem:quantityKind": {
+        "@id": "qk:DimensionlessRatio"
+      }
+    },
+    {
+      "@id": "https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#out1",
+      "@type": [
+        "wsem:OutputVariable",
+        "PropertyValueSpecification"
+      ],
+      "description": "BED organe native ; null si non calculable.",
+      "name": "bed_oar",
+      "skos:definition": "BED organe native ; null si non calculable.",
+      "skos:prefLabel": "bed_oar",
+      "unitCode": {
+        "@id": "unit:GRAY"
+      },
+      "unitText": "Gy",
+      "valueRequired": true,
+      "wsem:apiVariable": "bed_oar",
+      "wsem:canonicalUnit": {
+        "@id": "unit:GRAY"
+      },
+      "wsem:quantityKind": {
+        "@id": "qk:AbsorbedDose"
+      }
     }
   ]
 }
