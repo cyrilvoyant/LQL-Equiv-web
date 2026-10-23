@@ -1,0 +1,242 @@
+{
+  "descriptor": "websemantic-lite/0.1",
+  "generated": "2026-10-23",
+  "vocabulary": "https://w3id.org/websemantic/ns#",
+  "software": {
+    "name": "LQL-Equiv-web",
+    "title": "LQL-Equiv-web 3.0: biologically equivalent doses in radiotherapy (Python, browser)",
+    "repository": "https://github.com/cyrilvoyant/LQL-Equiv-web",
+    "conceptDOI": "https://doi.org/10.5281/zenodo.21948623",
+    "license": "MIT",
+    "programmingLanguage": "Python",
+    "authors": [
+      {
+        "name": "Cyril Voyant",
+        "orcid": "https://orcid.org/0000-0003-0242-7377"
+      },
+      {
+        "name": "Daniel Julian"
+      }
+    ]
+  },
+  "article": {
+    "citation": "C. Voyant, D. Julian. LQL-Equiv. SoftwareX 36 (2026) 103085; and Voyant et al., Reports of Practical Oncology and Radiotherapy 19(1) (2014) 47–55",
+    "doi": "https://doi.org/10.1016/j.softx.2026.103085",
+    "status": "published"
+  },
+  "tasks": {
+    "supported": [
+      "compute BED, EQD2, NTCP and TCP of stated schedules",
+      "compare schedules for one organ at risk and one target"
+    ],
+    "out_of_scope": [
+      "clinical decisions",
+      "inventing a dose from a qualitative word"
+    ]
+  },
+  "inputs": [
+    {
+      "field": "organ",
+      "type": "category",
+      "required": true,
+      "definition": "Nom exact dans la bibliothèque radiobiologique ; ne définit pas un patient."
+    },
+    {
+      "field": "tumour_site",
+      "type": "category",
+      "required": true,
+      "definition": "Nom exact dans la bibliothèque ; cas fictif uniquement."
+    },
+    {
+      "field": "dose_per_fraction",
+      "type": "float",
+      "required": true,
+      "definition": "Dose physique pour chaque fraction du seul cursus.",
+      "unit": "unit:GRAY",
+      "unit_symbol": "Gy",
+      "unit_iri": "http://qudt.org/vocab/unit/GRAY",
+      "quantity_kind_iri": "http://qudt.org/vocab/quantitykind/AbsorbedDose",
+      "bounds": "min_exclusive 0"
+    },
+    {
+      "field": "n_fractions",
+      "type": "int",
+      "required": true,
+      "definition": "Nombre entier de fractions du seul cursus.",
+      "unit": "unit:NUM",
+      "unit_symbol": "count",
+      "unit_iri": "http://qudt.org/vocab/unit/NUM",
+      "quantity_kind_iri": "http://qudt.org/vocab/quantitykind/Count",
+      "bounds": "min 1"
+    },
+    {
+      "field": "gap_days",
+      "type": "float",
+      "required": true,
+      "definition": "Intervalle avant le cursus en jours, dans la convention calendaire native.",
+      "unit": "unit:DAY",
+      "unit_symbol": "d",
+      "unit_iri": "http://qudt.org/vocab/unit/DAY",
+      "quantity_kind_iri": "http://qudt.org/vocab/quantitykind/Time",
+      "bounds": "min 0",
+      "default_proposal": "0",
+      "default_requires_acceptance": true
+    },
+    {
+      "field": "reference_dose",
+      "type": "float",
+      "required": true,
+      "definition": "Dose physique par fraction du régime auquel EQD se rapporte ; EQD2 seulement si 2 Gy.",
+      "unit": "unit:GRAY",
+      "unit_symbol": "Gy",
+      "unit_iri": "http://qudt.org/vocab/unit/GRAY",
+      "quantity_kind_iri": "http://qudt.org/vocab/quantitykind/AbsorbedDose",
+      "bounds": "min_exclusive 0",
+      "default_proposal": "2",
+      "default_requires_acceptance": true
+    },
+    {
+      "field": "bifractionated",
+      "type": "category",
+      "required": true,
+      "definition": "yes active deux fractions par jour et un intervalle natif fixe de 6 h ; no sinon.",
+      "default_proposal": "no",
+      "default_requires_acceptance": true
+    }
+  ],
+  "outputs": [
+    {
+      "field": "physical_dose_gy",
+      "type": "float",
+      "required": true,
+      "definition": "Dose physique totale = dose par fraction × fractions ; distincte de BED.",
+      "unit": "unit:GRAY",
+      "unit_symbol": "Gy",
+      "unit_iri": "http://qudt.org/vocab/unit/GRAY",
+      "quantity_kind_iri": "http://qudt.org/vocab/quantitykind/AbsorbedDose"
+    },
+    {
+      "field": "bed_oar",
+      "type": "float",
+      "required": true,
+      "definition": "BED organe native ; null si non calculable.",
+      "unit": "unit:GRAY",
+      "unit_symbol": "Gy",
+      "unit_iri": "http://qudt.org/vocab/unit/GRAY",
+      "quantity_kind_iri": "http://qudt.org/vocab/quantitykind/AbsorbedDose"
+    },
+    {
+      "field": "bed_tumour",
+      "type": "float",
+      "required": true,
+      "definition": "BED tumeur native ; null si non calculable.",
+      "unit": "unit:GRAY",
+      "unit_symbol": "Gy",
+      "unit_iri": "http://qudt.org/vocab/unit/GRAY",
+      "quantity_kind_iri": "http://qudt.org/vocab/quantitykind/AbsorbedDose"
+    },
+    {
+      "field": "eqd_oar_total",
+      "type": "float",
+      "required": true,
+      "definition": "Dose équivalente organe au fractionnement de référence ; null si invalide ou saturée.",
+      "unit": "unit:GRAY",
+      "unit_symbol": "Gy",
+      "unit_iri": "http://qudt.org/vocab/unit/GRAY",
+      "quantity_kind_iri": "http://qudt.org/vocab/quantitykind/AbsorbedDose"
+    },
+    {
+      "field": "eqd_tumour_total",
+      "type": "float",
+      "required": true,
+      "definition": "Dose équivalente tumeur au fractionnement de référence ; null si invalide ou saturée.",
+      "unit": "unit:GRAY",
+      "unit_symbol": "Gy",
+      "unit_iri": "http://qudt.org/vocab/unit/GRAY",
+      "quantity_kind_iri": "http://qudt.org/vocab/quantitykind/AbsorbedDose"
+    },
+    {
+      "field": "ntcp_percent",
+      "type": "float",
+      "required": true,
+      "definition": "Probabilité modélisée de complication ; null si EQD invalide ou coefficient absent.",
+      "unit": "unit:PERCENT",
+      "unit_symbol": "%",
+      "unit_iri": "http://qudt.org/vocab/unit/PERCENT",
+      "quantity_kind_iri": "http://qudt.org/vocab/quantitykind/DimensionlessRatio"
+    },
+    {
+      "field": "tcp_percent",
+      "type": "float",
+      "required": true,
+      "definition": "Probabilité modélisée de contrôle tumoral ; null si EQD invalide ou coefficient absent.",
+      "unit": "unit:PERCENT",
+      "unit_symbol": "%",
+      "unit_iri": "http://qudt.org/vocab/unit/PERCENT",
+      "quantity_kind_iri": "http://qudt.org/vocab/quantitykind/DimensionlessRatio"
+    },
+    {
+      "field": "cancer_risk",
+      "type": "float",
+      "required": true,
+      "definition": "Indice natif du modèle de risque secondaire ; dépend des coefficients tabulés, ne pas interpréter comme pourcentage clinique."
+    },
+    {
+      "field": "overall_days_oar",
+      "type": "float",
+      "required": true,
+      "definition": "Durée calendaire native du cursus, organe.",
+      "unit": "unit:DAY",
+      "unit_symbol": "d",
+      "unit_iri": "http://qudt.org/vocab/unit/DAY",
+      "quantity_kind_iri": "http://qudt.org/vocab/quantitykind/Time"
+    },
+    {
+      "field": "overall_days_tumour",
+      "type": "float",
+      "required": true,
+      "definition": "Durée calendaire native du cursus, tumeur.",
+      "unit": "unit:DAY",
+      "unit_symbol": "d",
+      "unit_iri": "http://qudt.org/vocab/unit/DAY",
+      "quantity_kind_iri": "http://qudt.org/vocab/quantitykind/Time"
+    },
+    {
+      "field": "oar_total_valid",
+      "type": "float",
+      "required": true,
+      "definition": "Validité native du total organe."
+    },
+    {
+      "field": "tumour_total_valid",
+      "type": "float",
+      "required": true,
+      "definition": "Validité native du total tumeur."
+    },
+    {
+      "field": "oar_saturated",
+      "type": "float",
+      "required": true,
+      "definition": "true si EQD organe à une borne de recherche."
+    },
+    {
+      "field": "tumour_saturated",
+      "type": "float",
+      "required": true,
+      "definition": "true si EQD tumeur à une borne de recherche."
+    }
+  ],
+  "rules": [
+    "Never invent a value. Each input is given by the user, an exact unit conversion of a given value, or a documented default that the user explicitly accepts.",
+    "Use the canonical unit of each field; convert exactly and say so (for example 2 km -> 2000 m). Never mix a percentage and a fraction.",
+    "Ask when a request is ambiguous or a required input is missing; do not infer a number from a place name or a qualitative word.",
+    "Run the code unmodified. Report only what was actually computed, with quantity, unit and the input values used; never present a planned or unavailable run as a result.",
+    "State the scope and the limits below when you report a result.",
+    "LQL-Equiv: always ask. Any qualitative wording of dose, number of sessions or fractionation is asked, never converted; the only proposal is « fractionnement conventionnel » = 2 Gy per fraction, to be accepted.",
+    "A schedule is called better only if it dominates (TCP ≥ and NTCP ≤, one strict); otherwise report the trade-off."
+  ],
+  "limits": [
+    "Research and education only; not a medical device; refuse any decision for a patient."
+  ],
+  "full_contract": "https://github.com/cyrilvoyant/websemantic (pack lqlequiv: LLM-CONTRACT.md, ontology.ttl, shapes.ttl)"
+}

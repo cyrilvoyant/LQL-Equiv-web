@@ -1,0 +1,197 @@
+{
+  "@context": {
+    "@vocab": "https://schema.org/",
+    "wsem": "https://w3id.org/websemantic/ns#"
+  },
+  "@type": "SoftwareSourceCode",
+  "@id": "https://doi.org/10.5281/zenodo.21948623",
+  "name": "LQL-Equiv-web 3.0: biologically equivalent doses in radiotherapy (Python, browser)",
+  "description": "Computes BED, equivalent doses (EQD2), NTCP, TCP and radiation-induced cancer risk under the linear-quadratic-linear model, for 34 organs at risk and 20 tumour sites, over successive courses.",
+  "codeRepository": "https://github.com/cyrilvoyant/LQL-Equiv-web",
+  "license": "MIT",
+  "programmingLanguage": "Python",
+  "keywords": [
+    "radiotherapy",
+    "biologically effective dose",
+    "EQD2",
+    "linear-quadratic-linear",
+    "NTCP",
+    "TCP"
+  ],
+  "dateModified": "2026-10-23",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "Cyril Voyant",
+      "@id": "https://orcid.org/0000-0003-0242-7377"
+    },
+    {
+      "@type": "Person",
+      "name": "Daniel Julian"
+    }
+  ],
+  "citation": {
+    "@type": "ScholarlyArticle",
+    "@id": "https://doi.org/10.1016/j.softx.2026.103085",
+    "name": "C. Voyant, D. Julian. LQL-Equiv. SoftwareX 36 (2026) 103085; and Voyant et al., Reports of Practical Oncology and Radiotherapy 19(1) (2014) 47–55"
+  },
+  "wsem:declaresParameter": [
+    {
+      "@type": "PropertyValueSpecification",
+      "name": "organ",
+      "description": "Nom exact dans la bibliothèque radiobiologique ; ne définit pas un patient.",
+      "valueRequired": true
+    },
+    {
+      "@type": "PropertyValueSpecification",
+      "name": "tumour_site",
+      "description": "Nom exact dans la bibliothèque ; cas fictif uniquement.",
+      "valueRequired": true
+    },
+    {
+      "@type": "PropertyValueSpecification",
+      "name": "dose_per_fraction",
+      "description": "Dose physique pour chaque fraction du seul cursus.",
+      "valueRequired": true,
+      "unitText": "Gy",
+      "unitCode": "http://qudt.org/vocab/unit/GRAY"
+    },
+    {
+      "@type": "PropertyValueSpecification",
+      "name": "n_fractions",
+      "description": "Nombre entier de fractions du seul cursus.",
+      "valueRequired": true,
+      "unitText": "count",
+      "unitCode": "http://qudt.org/vocab/unit/NUM"
+    },
+    {
+      "@type": "PropertyValueSpecification",
+      "name": "gap_days",
+      "description": "Intervalle avant le cursus en jours, dans la convention calendaire native.",
+      "valueRequired": true,
+      "unitText": "d",
+      "unitCode": "http://qudt.org/vocab/unit/DAY",
+      "defaultValue": "0"
+    },
+    {
+      "@type": "PropertyValueSpecification",
+      "name": "reference_dose",
+      "description": "Dose physique par fraction du régime auquel EQD se rapporte ; EQD2 seulement si 2 Gy.",
+      "valueRequired": true,
+      "unitText": "Gy",
+      "unitCode": "http://qudt.org/vocab/unit/GRAY",
+      "defaultValue": "2"
+    },
+    {
+      "@type": "PropertyValueSpecification",
+      "name": "bifractionated",
+      "description": "yes active deux fractions par jour et un intervalle natif fixe de 6 h ; no sinon.",
+      "valueRequired": true,
+      "defaultValue": "no"
+    }
+  ],
+  "wsem:declaresOutput": [
+    {
+      "@type": "PropertyValueSpecification",
+      "name": "physical_dose_gy",
+      "description": "Dose physique totale = dose par fraction × fractions ; distincte de BED.",
+      "valueRequired": true,
+      "unitText": "Gy",
+      "unitCode": "http://qudt.org/vocab/unit/GRAY"
+    },
+    {
+      "@type": "PropertyValueSpecification",
+      "name": "bed_oar",
+      "description": "BED organe native ; null si non calculable.",
+      "valueRequired": true,
+      "unitText": "Gy",
+      "unitCode": "http://qudt.org/vocab/unit/GRAY"
+    },
+    {
+      "@type": "PropertyValueSpecification",
+      "name": "bed_tumour",
+      "description": "BED tumeur native ; null si non calculable.",
+      "valueRequired": true,
+      "unitText": "Gy",
+      "unitCode": "http://qudt.org/vocab/unit/GRAY"
+    },
+    {
+      "@type": "PropertyValueSpecification",
+      "name": "eqd_oar_total",
+      "description": "Dose équivalente organe au fractionnement de référence ; null si invalide ou saturée.",
+      "valueRequired": true,
+      "unitText": "Gy",
+      "unitCode": "http://qudt.org/vocab/unit/GRAY"
+    },
+    {
+      "@type": "PropertyValueSpecification",
+      "name": "eqd_tumour_total",
+      "description": "Dose équivalente tumeur au fractionnement de référence ; null si invalide ou saturée.",
+      "valueRequired": true,
+      "unitText": "Gy",
+      "unitCode": "http://qudt.org/vocab/unit/GRAY"
+    },
+    {
+      "@type": "PropertyValueSpecification",
+      "name": "ntcp_percent",
+      "description": "Probabilité modélisée de complication ; null si EQD invalide ou coefficient absent.",
+      "valueRequired": true,
+      "unitText": "%",
+      "unitCode": "http://qudt.org/vocab/unit/PERCENT"
+    },
+    {
+      "@type": "PropertyValueSpecification",
+      "name": "tcp_percent",
+      "description": "Probabilité modélisée de contrôle tumoral ; null si EQD invalide ou coefficient absent.",
+      "valueRequired": true,
+      "unitText": "%",
+      "unitCode": "http://qudt.org/vocab/unit/PERCENT"
+    },
+    {
+      "@type": "PropertyValueSpecification",
+      "name": "cancer_risk",
+      "description": "Indice natif du modèle de risque secondaire ; dépend des coefficients tabulés, ne pas interpréter comme pourcentage clinique.",
+      "valueRequired": true
+    },
+    {
+      "@type": "PropertyValueSpecification",
+      "name": "overall_days_oar",
+      "description": "Durée calendaire native du cursus, organe.",
+      "valueRequired": true,
+      "unitText": "d",
+      "unitCode": "http://qudt.org/vocab/unit/DAY"
+    },
+    {
+      "@type": "PropertyValueSpecification",
+      "name": "overall_days_tumour",
+      "description": "Durée calendaire native du cursus, tumeur.",
+      "valueRequired": true,
+      "unitText": "d",
+      "unitCode": "http://qudt.org/vocab/unit/DAY"
+    },
+    {
+      "@type": "PropertyValueSpecification",
+      "name": "oar_total_valid",
+      "description": "Validité native du total organe.",
+      "valueRequired": true
+    },
+    {
+      "@type": "PropertyValueSpecification",
+      "name": "tumour_total_valid",
+      "description": "Validité native du total tumeur.",
+      "valueRequired": true
+    },
+    {
+      "@type": "PropertyValueSpecification",
+      "name": "oar_saturated",
+      "description": "true si EQD organe à une borne de recherche.",
+      "valueRequired": true
+    },
+    {
+      "@type": "PropertyValueSpecification",
+      "name": "tumour_saturated",
+      "description": "true si EQD tumeur à une borne de recherche.",
+      "valueRequired": true
+    }
+  ]
+}

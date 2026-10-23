@@ -1,0 +1,156 @@
+@prefix wsem: <https://w3id.org/websemantic/ns#> .
+@prefix schema: <https://schema.org/> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix qudt: <http://qudt.org/schema/qudt/> .
+@prefix unit: <http://qudt.org/vocab/unit/> .
+@prefix qk: <http://qudt.org/vocab/quantitykind/> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix : <https://cyrilvoyant.github.io/ontology/LQL-Equiv-web#> .
+
+# Instances of the WebSemantic core vocabulary for LQL-Equiv-web (generated 2026-10-23; documentation only).
+
+:software a wsem:Software, schema:SoftwareSourceCode ;
+    schema:name "LQL-Equiv-web 3.0: biologically equivalent doses in radiotherapy (Python, browser)" ;
+    schema:codeRepository <https://github.com/cyrilvoyant/LQL-Equiv-web> ;
+    wsem:conceptDOI "https://doi.org/10.5281/zenodo.21948623" ;
+    schema:identifier <https://doi.org/10.5281/zenodo.21948623> ;
+    schema:license "MIT" ;
+    schema:programmingLanguage "Python" ;
+    schema:description "Computes BED, equivalent doses (EQD2), NTCP, TCP and radiation-induced cancer risk under the linear-quadratic-linear model, for 34 organs at risk and 20 tumour sites, over successive courses." ;
+    schema:author <https://orcid.org/0000-0003-0242-7377> ;
+    schema:author [ a schema:Person ; schema:name "Daniel Julian" ] ;
+    schema:citation <https://doi.org/10.1016/j.softx.2026.103085> ;
+    wsem:declaresParameter :in0 ;
+    wsem:declaresParameter :in1 ;
+    wsem:declaresParameter :in2 ;
+    wsem:declaresParameter :in3 ;
+    wsem:declaresParameter :in4 ;
+    wsem:declaresParameter :in5 ;
+    wsem:declaresParameter :in6 ;
+    wsem:declaresOutput :out0 ;
+    wsem:declaresOutput :out1 ;
+    wsem:declaresOutput :out2 ;
+    wsem:declaresOutput :out3 ;
+    wsem:declaresOutput :out4 ;
+    wsem:declaresOutput :out5 ;
+    wsem:declaresOutput :out6 ;
+    wsem:declaresOutput :out7 ;
+    wsem:declaresOutput :out8 ;
+    wsem:declaresOutput :out9 ;
+    wsem:declaresOutput :out10 ;
+    wsem:declaresOutput :out11 ;
+    wsem:declaresOutput :out12 ;
+    wsem:declaresOutput :out13 ;
+    dcterms:modified "2026-10-23" .
+
+<https://orcid.org/0000-0003-0242-7377> a schema:Person ; schema:name "Cyril Voyant" .
+:in0 a wsem:ParameterDefinition ;
+    skos:prefLabel "organ" ;
+    wsem:apiVariable "organ" ;
+    skos:definition "Nom exact dans la bibliothèque radiobiologique ; ne définit pas un patient." .
+:in1 a wsem:ParameterDefinition ;
+    skos:prefLabel "tumour_site" ;
+    wsem:apiVariable "tumour_site" ;
+    skos:definition "Nom exact dans la bibliothèque ; cas fictif uniquement." .
+:in2 a wsem:ParameterDefinition ;
+    skos:prefLabel "dose_per_fraction" ;
+    wsem:apiVariable "dose_per_fraction" ;
+    skos:definition "Dose physique pour chaque fraction du seul cursus." ;
+    wsem:canonicalUnit unit:GRAY ;
+    wsem:quantityKind qk:AbsorbedDose .
+:in3 a wsem:ParameterDefinition ;
+    skos:prefLabel "n_fractions" ;
+    wsem:apiVariable "n_fractions" ;
+    skos:definition "Nombre entier de fractions du seul cursus." ;
+    wsem:canonicalUnit unit:NUM ;
+    wsem:quantityKind qk:Count .
+:in4 a wsem:ParameterDefinition ;
+    skos:prefLabel "gap_days" ;
+    wsem:apiVariable "gap_days" ;
+    skos:definition "Intervalle avant le cursus en jours, dans la convention calendaire native." ;
+    wsem:canonicalUnit unit:DAY ;
+    wsem:quantityKind qk:Time .
+:in5 a wsem:ParameterDefinition ;
+    skos:prefLabel "reference_dose" ;
+    wsem:apiVariable "reference_dose" ;
+    skos:definition "Dose physique par fraction du régime auquel EQD se rapporte ; EQD2 seulement si 2 Gy." ;
+    wsem:canonicalUnit unit:GRAY ;
+    wsem:quantityKind qk:AbsorbedDose .
+:in6 a wsem:ParameterDefinition ;
+    skos:prefLabel "bifractionated" ;
+    wsem:apiVariable "bifractionated" ;
+    skos:definition "yes active deux fractions par jour et un intervalle natif fixe de 6 h ; no sinon." .
+:out0 a wsem:OutputVariable ;
+    skos:prefLabel "physical_dose_gy" ;
+    wsem:apiVariable "physical_dose_gy" ;
+    skos:definition "Dose physique totale = dose par fraction × fractions ; distincte de BED." ;
+    wsem:canonicalUnit unit:GRAY ;
+    wsem:quantityKind qk:AbsorbedDose .
+:out1 a wsem:OutputVariable ;
+    skos:prefLabel "bed_oar" ;
+    wsem:apiVariable "bed_oar" ;
+    skos:definition "BED organe native ; null si non calculable." ;
+    wsem:canonicalUnit unit:GRAY ;
+    wsem:quantityKind qk:AbsorbedDose .
+:out2 a wsem:OutputVariable ;
+    skos:prefLabel "bed_tumour" ;
+    wsem:apiVariable "bed_tumour" ;
+    skos:definition "BED tumeur native ; null si non calculable." ;
+    wsem:canonicalUnit unit:GRAY ;
+    wsem:quantityKind qk:AbsorbedDose .
+:out3 a wsem:OutputVariable ;
+    skos:prefLabel "eqd_oar_total" ;
+    wsem:apiVariable "eqd_oar_total" ;
+    skos:definition "Dose équivalente organe au fractionnement de référence ; null si invalide ou saturée." ;
+    wsem:canonicalUnit unit:GRAY ;
+    wsem:quantityKind qk:AbsorbedDose .
+:out4 a wsem:OutputVariable ;
+    skos:prefLabel "eqd_tumour_total" ;
+    wsem:apiVariable "eqd_tumour_total" ;
+    skos:definition "Dose équivalente tumeur au fractionnement de référence ; null si invalide ou saturée." ;
+    wsem:canonicalUnit unit:GRAY ;
+    wsem:quantityKind qk:AbsorbedDose .
+:out5 a wsem:OutputVariable ;
+    skos:prefLabel "ntcp_percent" ;
+    wsem:apiVariable "ntcp_percent" ;
+    skos:definition "Probabilité modélisée de complication ; null si EQD invalide ou coefficient absent." ;
+    wsem:canonicalUnit unit:PERCENT ;
+    wsem:quantityKind qk:DimensionlessRatio .
+:out6 a wsem:OutputVariable ;
+    skos:prefLabel "tcp_percent" ;
+    wsem:apiVariable "tcp_percent" ;
+    skos:definition "Probabilité modélisée de contrôle tumoral ; null si EQD invalide ou coefficient absent." ;
+    wsem:canonicalUnit unit:PERCENT ;
+    wsem:quantityKind qk:DimensionlessRatio .
+:out7 a wsem:OutputVariable ;
+    skos:prefLabel "cancer_risk" ;
+    wsem:apiVariable "cancer_risk" ;
+    skos:definition "Indice natif du modèle de risque secondaire ; dépend des coefficients tabulés, ne pas interpréter comme pourcentage clinique." .
+:out8 a wsem:OutputVariable ;
+    skos:prefLabel "overall_days_oar" ;
+    wsem:apiVariable "overall_days_oar" ;
+    skos:definition "Durée calendaire native du cursus, organe." ;
+    wsem:canonicalUnit unit:DAY ;
+    wsem:quantityKind qk:Time .
+:out9 a wsem:OutputVariable ;
+    skos:prefLabel "overall_days_tumour" ;
+    wsem:apiVariable "overall_days_tumour" ;
+    skos:definition "Durée calendaire native du cursus, tumeur." ;
+    wsem:canonicalUnit unit:DAY ;
+    wsem:quantityKind qk:Time .
+:out10 a wsem:OutputVariable ;
+    skos:prefLabel "oar_total_valid" ;
+    wsem:apiVariable "oar_total_valid" ;
+    skos:definition "Validité native du total organe." .
+:out11 a wsem:OutputVariable ;
+    skos:prefLabel "tumour_total_valid" ;
+    wsem:apiVariable "tumour_total_valid" ;
+    skos:definition "Validité native du total tumeur." .
+:out12 a wsem:OutputVariable ;
+    skos:prefLabel "oar_saturated" ;
+    wsem:apiVariable "oar_saturated" ;
+    skos:definition "true si EQD organe à une borne de recherche." .
+:out13 a wsem:OutputVariable ;
+    skos:prefLabel "tumour_saturated" ;
+    wsem:apiVariable "tumour_saturated" ;
+    skos:definition "true si EQD tumeur à une borne de recherche." .
